@@ -3,17 +3,41 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { ArrowRight } from 'lucide-react';
 
+// Mini info card component
+function MiniInfoCard({ name, score, attention, style }) {
+  return (
+    <div 
+      className="absolute pointer-events-none"
+      style={style}
+    >
+      {/* Card */}
+      <div 
+        className="bg-white/75 backdrop-blur-sm rounded-lg px-2.5 py-1.5 shadow-sm border border-gray-100/50"
+        style={{
+          animation: 'cardFloat 3s ease-in-out infinite',
+        }}
+      >
+        <p className="text-[9px] font-medium text-gray-800 leading-tight">{name}</p>
+        <p className="text-[8px] text-gray-500 leading-tight">Score: {score}</p>
+        <p className="text-[8px] text-gray-400 leading-tight">{attention}</p>
+      </div>
+      {/* Connector stem */}
+      <div className="w-px h-3 bg-gray-300/60 mx-auto" />
+    </div>
+  );
+}
+
 // Mini orbit visual for hero
 function HeroOrbit() {
   // Dots with orbital properties: distance from center, initial angle, size class, orbit duration (slowed 50%)
   const dots = [
-    { distance: 28, angle: 0, sizeClass: 'large', duration: 28 },
+    { distance: 28, angle: 0, sizeClass: 'large', duration: 28, hasCard: true, cardInfo: { name: 'Trend-Seeker', score: 76, attention: 'Full' } },
     { distance: 38, angle: 40, sizeClass: 'medium', duration: 32 },
-    { distance: 22, angle: 85, sizeClass: 'large', duration: 26 },
+    { distance: 22, angle: 85, sizeClass: 'large', duration: 26, hasCard: true, cardInfo: { name: 'Cozy Explorer', score: 84, attention: 'Partial' } },
     { distance: 42, angle: 130, sizeClass: 'small', duration: 36 },
     { distance: 32, angle: 175, sizeClass: 'medium', duration: 30 },
     { distance: 45, angle: 220, sizeClass: 'small', duration: 38 },
-    { distance: 25, angle: 265, sizeClass: 'large', duration: 25 },
+    { distance: 25, angle: 265, sizeClass: 'large', duration: 25, hasCard: true, cardInfo: { name: 'Night Owl', score: 61, attention: 'Skim' } },
     { distance: 40, angle: 310, sizeClass: 'medium', duration: 34 },
     { distance: 35, angle: 355, sizeClass: 'small', duration: 33 },
   ];
@@ -66,7 +90,7 @@ function HeroOrbit() {
       {dots.map((dot, i) => {
         const size = sizes[dot.sizeClass];
         const color = getColor(dot.distance);
-        
+
         return (
           <div
             key={i}
@@ -80,6 +104,20 @@ function HeroOrbit() {
               animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
             }}
           >
+            {/* Mini info card if this dot has one */}
+            {dot.hasCard && (
+              <MiniInfoCard 
+                name={dot.cardInfo.name}
+                score={dot.cardInfo.score}
+                attention={dot.cardInfo.attention}
+                style={{
+                  left: '100%',
+                  top: '50%',
+                  transform: 'translate(-50%, -100%) translateY(-${size/2}px)',
+                  marginTop: `-${size/2 + 2}px`,
+                }}
+              />
+            )}
             <div
               className="absolute rounded-full"
               style={{
@@ -102,7 +140,7 @@ function HeroOrbit() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
-        
+
         @keyframes wobble-0 {
           0%, 100% { transform: translate(-50%, -50%) translate(0px, 0px); }
           25% { transform: translate(-50%, -50%) translate(2px, -1px); }
@@ -118,10 +156,15 @@ function HeroOrbit() {
           0%, 100% { transform: translate(-50%, -50%) translate(0px, 0px); }
           50% { transform: translate(-50%, -50%) translate(2px, 2px); }
         }
-        
+
         @keyframes pulse {
           0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
           50% { transform: translate(-50%, -50%) scale(1.02); opacity: 0.92; }
+        }
+
+        @keyframes cardFloat {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-2px); }
         }
       `}</style>
     </div>
@@ -161,7 +204,7 @@ export default function HeroSection() {
         </div>
         
         {/* Hero Visual */}
-        <div className="mt-8">
+        <div className="mt-16">
           <HeroOrbit />
         </div>
       </div>
