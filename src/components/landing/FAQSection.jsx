@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useScrollReveal } from './useScrollReveal';
 
 const faqs = [
   {
@@ -24,22 +25,39 @@ const faqs = [
   },
 ];
 
-function AccordionItem({ question, answer, isOpen, onClick }) {
+function AccordionItem({ question, answer, isOpen, onClick, index, isVisible }) {
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
+    <div 
+      className="border-b border-gray-100 last:border-b-0"
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'translateY(0)' : 'translateY(6px)',
+        transition: `opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.07}s, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.07}s`,
+      }}
+    >
       <button
         onClick={onClick}
         className="w-full flex items-center justify-between py-5 text-left group"
       >
         <span className="text-sm font-medium text-gray-900 pr-4">{question}</span>
         <ChevronDown 
-          className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-300 ease-out ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
       <div 
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 pb-5' : 'max-h-0'}`}
+        className="overflow-hidden transition-all duration-300 ease-out"
+        style={{
+          maxHeight: isOpen ? '400px' : '0px',
+          paddingBottom: isOpen ? '20px' : '0px',
+        }}
       >
-        <p className="text-sm text-gray-500 font-light leading-relaxed pr-8">
+        <p 
+          className="text-sm text-gray-500 font-light leading-relaxed pr-8"
+          style={{
+            opacity: isOpen ? 1 : 0,
+            transition: 'opacity 0.2s ease-out 0.1s',
+          }}
+        >
           {answer}
         </p>
       </div>
@@ -49,6 +67,8 @@ function AccordionItem({ question, answer, isOpen, onClick }) {
 
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState(null);
+  const [headerRef, headerVisible] = useScrollReveal(0.2);
+  const [accordionRef, accordionVisible] = useScrollReveal(0.1);
 
   const handleToggle = (index) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -59,17 +79,37 @@ export default function FAQSection() {
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16">
           {/* Left Column - Title & Subtitle */}
-          <div>
+          <div
+            ref={headerRef}
+            style={{
+              opacity: headerVisible ? 1 : 0,
+              transform: headerVisible ? 'translateY(0)' : 'translateY(10px)',
+              transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
             <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-4">
               Welcome to the future of content and creativity.
             </h2>
-            <p className="text-sm text-gray-500 font-light leading-relaxed">
+            <p 
+              className="text-sm text-gray-500 font-light leading-relaxed"
+              style={{
+                opacity: headerVisible ? 1 : 0,
+                transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s',
+              }}
+            >
               Still have questions? Feel free to contact our team.
             </p>
           </div>
 
           {/* Right Column - Accordion */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div 
+            ref={accordionRef}
+            className="bg-white rounded-2xl border border-gray-100 p-6"
+            style={{
+              opacity: accordionVisible ? 1 : 0,
+              transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
             {faqs.map((faq, index) => (
               <AccordionItem
                 key={index}
@@ -77,6 +117,8 @@ export default function FAQSection() {
                 answer={faq.answer}
                 isOpen={openIndex === index}
                 onClick={() => handleToggle(index)}
+                index={index}
+                isVisible={accordionVisible}
               />
             ))}
           </div>

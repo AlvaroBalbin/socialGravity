@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useScrollReveal } from './useScrollReveal';
 
 // Persona info box component
 function PersonaInfoBox({ name, score, attention, style }) {
@@ -22,7 +23,7 @@ function PersonaInfoBox({ name, score, attention, style }) {
   );
 }
 
-function ShowcaseOrbit() {
+function ShowcaseOrbit({ animateOrbit = true }) {
   // 12 persona dots with orbital properties
   const dots = [
     { distance: 32, angle: 30, size: 'large', color: '#3E4248', duration: 32, hasCard: true, cardInfo: { name: 'Trend-Seeker', score: 74, attention: 'Full' } },
@@ -91,7 +92,7 @@ function ShowcaseOrbit() {
               height: `${dot.distance * 2}%`,
               marginLeft: `-${dot.distance}%`,
               marginTop: `-${dot.distance}%`,
-              animation: `orbitShowcase ${dot.duration}s linear infinite`,
+              animation: animateOrbit ? `orbitShowcase ${dot.duration}s linear infinite` : 'none',
               animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
             }}
           >
@@ -103,7 +104,7 @@ function ShowcaseOrbit() {
                   left: '100%',
                   top: '50%',
                   transform: 'translate(-50%, -50%)',
-                  animation: `counterOrbitShowcase ${dot.duration}s linear infinite`,
+                  animation: animateOrbit ? `counterOrbitShowcase ${dot.duration}s linear infinite` : 'none',
                   animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
                 }}
               >
@@ -166,15 +167,40 @@ function ShowcaseOrbit() {
 }
 
 export default function OrbitShowcaseSection() {
+  const [headerRef, headerVisible] = useScrollReveal(0.2);
+  const [orbitRef, orbitVisible] = useScrollReveal(0.1);
+  const [orbitReady, setOrbitReady] = useState(false);
+
+  useEffect(() => {
+    if (orbitVisible) {
+      const timer = setTimeout(() => setOrbitReady(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [orbitVisible]);
+
   return (
     <section className="py-20 px-6 pb-28 bg-[#FAFAFA]">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div 
+          ref={headerRef}
+          className="text-center mb-16"
+          style={{
+            opacity: headerVisible ? 1 : 0,
+            transform: headerVisible ? 'translateY(0)' : 'translateY(10px)',
+            transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
           <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-5">
             A new way to "see" resonance.
           </h2>
-          <p className="text-sm text-gray-500 font-light max-w-md mx-auto leading-relaxed">
+          <p 
+            className="text-sm text-gray-500 font-light max-w-md mx-auto leading-relaxed"
+            style={{
+              opacity: headerVisible ? 1 : 0,
+              transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s',
+            }}
+          >
                         Every dot is an AI persona.<br />
                         The closer they drift, the more engaged they are.<br />
                         The darker they appear, the more they care.<br />
@@ -183,7 +209,16 @@ export default function OrbitShowcaseSection() {
         </div>
         
         {/* Visual */}
-        <ShowcaseOrbit />
+        <div
+          ref={orbitRef}
+          style={{
+            opacity: orbitVisible ? 1 : 0,
+            transform: orbitVisible ? 'scale(1)' : 'scale(0.96)',
+            transition: 'opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
+          <ShowcaseOrbit animateOrbit={orbitReady} />
+        </div>
       </div>
     </section>
   );
