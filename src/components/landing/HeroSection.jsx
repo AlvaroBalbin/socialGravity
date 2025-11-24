@@ -177,7 +177,7 @@ export default function HeroSection() {
       <div className="max-w-4xl mx-auto text-center">
         {/* Headline */}
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 tracking-tight mb-6">
-          See your audience.<br />
+          Predict Engagement.<br />
           <span className="text-gray-400">Before you post.</span>
         </h1>
         
