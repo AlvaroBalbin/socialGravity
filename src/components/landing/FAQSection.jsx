@@ -104,7 +104,7 @@ export default function FAQSection() {
               Welcome to the future of content and creativity.
             </h2>
             <p 
-              className="text-sm text-gray-500 font-light leading-relaxed"
+              className="text-sm text-gray-500 font-light leading-relaxed mb-10"
               style={{
                 opacity: titleInView ? 1 : 0,
                 transform: titleInView ? 'translateY(0)' : 'translateY(10px)',
@@ -113,6 +113,70 @@ export default function FAQSection() {
             >
               Still have questions? Feel free to contact our team.
             </p>
+
+            {/* Mini Orbit Visual */}
+            <div 
+              className="relative w-48 h-48 mx-auto md:mx-0"
+              style={{
+                opacity: titleInView ? 1 : 0,
+                transform: titleInView ? 'translateY(0)' : 'translateY(10px)',
+                transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.16s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.16s',
+              }}
+            >
+              {/* Orbit rings */}
+              <div className="absolute inset-[15%] rounded-full border border-gray-200/60" />
+              <div className="absolute inset-[30%] rounded-full border border-gray-200/50" />
+              <div className="absolute inset-[45%] rounded-full border border-gray-200/40" />
+              
+              {/* Central icon */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg border border-gray-100 flex items-center justify-center shadow-sm">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86a1 1 0 00-1.5.86z" fill="#9CA3AF"/>
+                </svg>
+              </div>
+              
+              {/* Orbiting dots */}
+              {[
+                { distance: 38, angle: 30, size: 10, color: '#4B5563', duration: 20 },
+                { distance: 32, angle: 120, size: 8, color: '#6B7280', duration: 18 },
+                { distance: 42, angle: 200, size: 6, color: '#9CA3AF', duration: 22 },
+                { distance: 28, angle: 280, size: 9, color: '#4B5563', duration: 16 },
+                { distance: 36, angle: 340, size: 7, color: '#6B7280', duration: 24 },
+              ].map((dot, i) => (
+                <div
+                  key={i}
+                  className="absolute left-1/2 top-1/2 pointer-events-none"
+                  style={{
+                    width: `${dot.distance * 2}%`,
+                    height: `${dot.distance * 2}%`,
+                    marginLeft: `-${dot.distance}%`,
+                    marginTop: `-${dot.distance}%`,
+                    animation: `faqOrbit ${dot.duration}s linear infinite`,
+                    animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
+                  }}
+                >
+                  <div
+                    className="absolute rounded-full"
+                    style={{
+                      width: `${dot.size}px`,
+                      height: `${dot.size}px`,
+                      backgroundColor: dot.color,
+                      left: '100%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                    }}
+                  />
+                </div>
+              ))}
+              
+              <style>{`
+                @keyframes faqOrbit {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              `}</style>
+            </div>
           </div>
 
           {/* Right Column - Accordion */}
