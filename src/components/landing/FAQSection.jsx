@@ -134,7 +134,7 @@ export default function FAQSection() {
 
         {/* Arrow and Contact Button - Bottom Left */}
         <div 
-          className="flex flex-col items-start mt-12"
+          className="flex flex-col items-start -mt-4"
           style={{
             opacity: titleInView ? 1 : 0,
             transform: titleInView ? 'translateY(0)' : 'translateY(10px)',
