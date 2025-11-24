@@ -311,23 +311,33 @@ export default function GravityOrbit({ onPersonaSelect, selectedPersona }) {
     }
   };
 
+  const handleBackgroundClick = (e) => {
+    // Only deselect if clicking directly on the background, not on a persona dot
+    if (e.target === e.currentTarget || e.target.classList.contains('orbit-bg')) {
+      onPersonaSelect(null);
+    }
+  };
+
   return (
-    <div className="relative w-full h-full flex items-center justify-center orbit-container">
+    <div 
+      className="relative w-full h-full flex items-center justify-center orbit-container cursor-default"
+      onClick={handleBackgroundClick}
+    >
       {/* Radial glow background */}
       <div 
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 orbit-bg"
         style={{
           background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.01) 30%, transparent 55%)',
         }}
       />
       
       {/* Orbit visualization container */}
-      <div className="relative w-full max-w-[460px] aspect-square">
+      <div className="relative w-full max-w-[460px] aspect-square orbit-bg">
         
         {/* Subtle orbit rings */}
-        <div className="absolute inset-[15%] rounded-full border border-gray-100 opacity-30" />
-        <div className="absolute inset-[30%] rounded-full border border-gray-100 opacity-20" />
-        <div className="absolute inset-[42%] rounded-full border border-gray-100 opacity-15" />
+        <div className="absolute inset-[15%] rounded-full border border-gray-100 opacity-30 pointer-events-none" />
+        <div className="absolute inset-[30%] rounded-full border border-gray-100 opacity-20 pointer-events-none" />
+        <div className="absolute inset-[42%] rounded-full border border-gray-100 opacity-15 pointer-events-none" />
         
         {/* Central play button */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center shadow-sm z-10">

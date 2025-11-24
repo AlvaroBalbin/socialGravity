@@ -21,14 +21,6 @@ export default function TopBar() {
         />
       </div>
 
-      {/* Personas count */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <span className="text-xs text-gray-500">Personas</span>
-        <div className="w-12 h-11 flex items-center justify-center border border-gray-200 rounded-xl bg-white">
-          <span className="text-sm font-medium text-gray-900">30</span>
-        </div>
-      </div>
-
       {/* Run Simulation button */}
       <Button className="h-11 px-5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-medium text-sm flex-shrink-0">
         Run Simulation
