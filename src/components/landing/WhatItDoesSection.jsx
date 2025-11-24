@@ -37,7 +37,7 @@ export default function WhatItDoesSection() {
                 key={feature.title} 
                 className="flex flex-col items-center bg-[#FAFAFA] rounded-2xl border border-gray-100 p-6"
               >
-                <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center mb-4">
+                <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center mb-4">
                   <Icon className="w-4 h-4 text-gray-600" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-sm font-medium text-gray-900 mb-2">{feature.title}</h3>
