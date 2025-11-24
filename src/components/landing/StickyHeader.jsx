@@ -45,6 +45,12 @@ export default function StickyHeader() {
             About
           </a>
           <a 
+            href="#what-it-does" 
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+          >
+            How It Works
+          </a>
+          <a 
             href="#intelligence" 
             className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
           >
