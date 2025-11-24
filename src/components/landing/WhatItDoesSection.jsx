@@ -21,7 +21,7 @@ const features = [
 
 export default function WhatItDoesSection() {
   return (
-    <section id="what-it-does" className="py-28 px-6">
+    <section id="what-it-does" className="py-28 px-6 bg-white">
       <div className="max-w-4xl mx-auto text-center">
         {/* Headline */}
         <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-16">

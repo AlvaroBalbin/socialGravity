@@ -167,7 +167,7 @@ function ShowcaseOrbit() {
 
 export default function OrbitShowcaseSection() {
   return (
-    <section className="py-20 px-6 pb-28">
+    <section className="py-20 px-6 pb-28 bg-[#FAFAFA]">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">

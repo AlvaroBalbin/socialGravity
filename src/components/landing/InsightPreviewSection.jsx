@@ -47,7 +47,7 @@ const cards = [
 
 export default function InsightPreviewSection() {
   return (
-    <section className="py-20 px-6">
+    <section className="py-20 px-6 bg-[#FAFAFA]">
       <div className="max-w-5xl mx-auto">
         <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight text-center mb-12">
           See How Your Content Performs at a Glance
