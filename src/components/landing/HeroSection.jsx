@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { ArrowRight } from 'lucide-react';
@@ -172,59 +172,25 @@ function HeroOrbit() {
 }
 
 export default function HeroSection() {
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
     <section className="min-h-[90vh] flex flex-col items-center justify-center px-6 py-20 bg-white">
       <div className="max-w-4xl mx-auto text-center">
         {/* Headline */}
-        <h1 
-          className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 tracking-tight mb-6"
-          style={{
-            opacity: isLoaded ? 1 : 0,
-            transform: isLoaded ? 'translateY(0)' : 'translateY(8px)',
-            transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
-        >
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 tracking-tight mb-6">
           Predict Engagement.<br />
-          <span 
-            className="text-gray-400"
-            style={{
-              opacity: isLoaded ? 1 : 0,
-              transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.08s',
-            }}
-          >Before you post.</span>
+          <span className="text-gray-400">Before you post.</span>
         </h1>
         
         {/* Sub-headline */}
-        <p 
-          className="text-base md:text-lg text-gray-500 font-light max-w-2xl mx-auto mb-10 leading-relaxed"
-          style={{
-            opacity: isLoaded ? 1 : 0,
-            transform: isLoaded ? 'translateY(0)' : 'translateY(8px)',
-            transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s',
-          }}
-        >
+        <p className="text-base md:text-lg text-gray-500 font-light max-w-2xl mx-auto mb-10 leading-relaxed">
           AI simulates how different personas react to your content — so creators can predict performance with clarity, not guesswork.
         </p>
         
         {/* CTAs */}
-        <div 
-          className="flex items-center justify-center gap-6 mb-16"
-          style={{
-            opacity: isLoaded ? 1 : 0,
-            transform: isLoaded ? 'translateY(0)' : 'translateY(8px)',
-            transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s',
-          }}
-        >
+        <div className="flex items-center justify-center gap-6 mb-16">
           <Link 
             to={createPageUrl('SimulationResults')}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-150 ease-out hover:scale-[1.02] hover:-translate-y-0.5"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-colors"
           >
             Try Simulation
             <ArrowRight className="w-4 h-4" />
