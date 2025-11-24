@@ -29,16 +29,19 @@ export default function WhatItDoesSection() {
         </h2>
         
         {/* Three columns */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {features.map((feature) => {
             const Icon = feature.icon;
             return (
-              <div key={feature.title} className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center mb-5">
-                  <Icon className="w-5 h-5 text-gray-600" strokeWidth={1.5} />
+              <div 
+                key={feature.title} 
+                className="flex flex-col items-center bg-white rounded-2xl border border-gray-100 p-6 shadow-sm"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center mb-4">
+                  <Icon className="w-4 h-4 text-gray-600" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-base font-medium text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-sm text-gray-500 font-light leading-relaxed max-w-[240px]">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">{feature.title}</h3>
+                <p className="text-xs text-gray-500 font-light leading-relaxed max-w-[240px]">
                   {feature.description}
                 </p>
               </div>
