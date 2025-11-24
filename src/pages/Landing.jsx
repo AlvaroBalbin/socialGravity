@@ -1,4 +1,5 @@
 import React from 'react';
+import StickyHeader from '@/components/landing/StickyHeader';
 import HeroSection from '@/components/landing/HeroSection';
 import WhatItDoesSection from '@/components/landing/WhatItDoesSection';
 import OrbitShowcaseSection from '@/components/landing/OrbitShowcaseSection';
@@ -11,6 +12,7 @@ import Footer from '@/components/landing/Footer';
 export default function Landing() {
   return (
     <div className="min-h-screen bg-white">
+      <StickyHeader />
       <HeroSection />
               <OrbitShowcaseSection />
               <WhatItDoesSection />
