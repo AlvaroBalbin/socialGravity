@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 import TopBar from '@/components/gravity/TopBar';
 import GravityOrbit from '@/components/gravity/GravityOrbit';
 import AnalyticsPanel from '@/components/gravity/AnalyticsPanel';
@@ -14,6 +16,14 @@ export default function SimulationResults() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      {/* Logo */}
+      <Link 
+        to={createPageUrl('Landing')}
+        className="absolute top-5 right-5 text-lg font-medium text-gray-900 tracking-tight hover:text-gray-600 transition-colors z-10"
+      >
+        Social Gravity
+      </Link>
+
       {/* Top Bar */}
       <TopBar />
 
