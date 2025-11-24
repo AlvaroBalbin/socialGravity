@@ -114,25 +114,6 @@ export default function FAQSection() {
               Still have questions? Feel free to contact our team.
             </p>
 
-            {/* Arrow and Contact Button */}
-            <div 
-              className="flex flex-col items-start mt-8"
-              style={{
-                opacity: titleInView ? 1 : 0,
-                transform: titleInView ? 'translateY(0)' : 'translateY(10px)',
-                transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.16s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.16s',
-              }}
-            >
-              <ChevronDown className="w-5 h-5 text-gray-300 mb-3 animate-bounce" />
-              <button
-                onClick={() => {
-                  document.getElementById('footer')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="text-sm font-medium text-gray-900 hover:text-gray-600 transition-colors underline underline-offset-4 decoration-gray-300 hover:decoration-gray-500"
-              >
-                Reach out to the Founders
-              </button>
-            </div>
             </div>
 
           {/* Right Column - Accordion */}
@@ -149,6 +130,26 @@ export default function FAQSection() {
               />
             ))}
           </div>
+        </div>
+
+        {/* Arrow and Contact Button - Bottom Left */}
+        <div 
+          className="flex flex-col items-start mt-12"
+          style={{
+            opacity: titleInView ? 1 : 0,
+            transform: titleInView ? 'translateY(0)' : 'translateY(10px)',
+            transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.24s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.24s',
+          }}
+        >
+          <ChevronDown className="w-5 h-5 text-gray-300 mb-3 animate-bounce" />
+          <button
+            onClick={() => {
+              document.getElementById('footer')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="text-sm font-medium text-gray-900 hover:text-gray-600 transition-colors underline underline-offset-4 decoration-gray-300 hover:decoration-gray-500"
+          >
+            Reach out to the Founders
+          </button>
         </div>
       </div>
     </section>
