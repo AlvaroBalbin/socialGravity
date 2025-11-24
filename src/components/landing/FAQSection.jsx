@@ -114,42 +114,39 @@ export default function FAQSection() {
               Still have questions? Feel free to contact our team.
             </p>
 
-            {/* Mini Orbit Visual */}
+            {/* Orbit Visual */}
             <div 
-              className="relative w-48 h-48 mx-auto md:mx-0"
+              className="relative w-full h-56 mt-4"
               style={{
                 opacity: titleInView ? 1 : 0,
                 transform: titleInView ? 'translateY(0)' : 'translateY(10px)',
                 transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.16s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.16s',
               }}
             >
-              {/* Orbit rings */}
-              <div className="absolute inset-[15%] rounded-full border border-gray-200/60" />
-              <div className="absolute inset-[30%] rounded-full border border-gray-200/50" />
-              <div className="absolute inset-[45%] rounded-full border border-gray-200/40" />
-              
               {/* Central icon */}
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg border border-gray-100 flex items-center justify-center shadow-sm">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl border border-gray-100 flex items-center justify-center shadow-sm z-10">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86a1 1 0 00-1.5.86z" fill="#9CA3AF"/>
                 </svg>
               </div>
               
               {/* Orbiting dots */}
               {[
-                { distance: 38, angle: 30, size: 10, color: '#4B5563', duration: 20 },
-                { distance: 32, angle: 120, size: 8, color: '#6B7280', duration: 18 },
-                { distance: 42, angle: 200, size: 6, color: '#9CA3AF', duration: 22 },
-                { distance: 28, angle: 280, size: 9, color: '#4B5563', duration: 16 },
-                { distance: 36, angle: 340, size: 7, color: '#6B7280', duration: 24 },
+                { distance: 42, angle: 20, size: 14, color: '#4B5563', duration: 22 },
+                { distance: 35, angle: 90, size: 11, color: '#6B7280', duration: 18 },
+                { distance: 48, angle: 150, size: 8, color: '#9CA3AF', duration: 26 },
+                { distance: 30, angle: 220, size: 12, color: '#4B5563', duration: 16 },
+                { distance: 44, angle: 280, size: 9, color: '#6B7280', duration: 24 },
+                { distance: 38, angle: 340, size: 10, color: '#9CA3AF', duration: 20 },
+                { distance: 26, angle: 60, size: 7, color: '#6B7280', duration: 14 },
               ].map((dot, i) => (
                 <div
                   key={i}
                   className="absolute left-1/2 top-1/2 pointer-events-none"
                   style={{
-                    width: `${dot.distance * 2}%`,
+                    width: `${dot.distance * 2.5}%`,
                     height: `${dot.distance * 2}%`,
-                    marginLeft: `-${dot.distance}%`,
+                    marginLeft: `-${dot.distance * 1.25}%`,
                     marginTop: `-${dot.distance}%`,
                     animation: `faqOrbit ${dot.duration}s linear infinite`,
                     animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
@@ -164,7 +161,7 @@ export default function FAQSection() {
                       left: '100%',
                       top: '50%',
                       transform: 'translate(-50%, -50%)',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
                     }}
                   />
                 </div>
