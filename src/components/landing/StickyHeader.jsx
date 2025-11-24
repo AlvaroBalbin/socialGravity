@@ -40,31 +40,36 @@ export default function StickyHeader() {
         <nav className="hidden md:flex items-center gap-8">
           <a 
             href="#resonance" 
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+            onClick={(e) => { e.preventDefault(); document.getElementById('resonance')?.scrollIntoView({ behavior: 'smooth' }); }}
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light cursor-pointer"
           >
             About
           </a>
           <a 
             href="#what-it-does" 
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+            onClick={(e) => { e.preventDefault(); document.getElementById('what-it-does')?.scrollIntoView({ behavior: 'smooth' }); }}
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light cursor-pointer"
           >
             How It Works
           </a>
           <a 
             href="#intelligence" 
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+            onClick={(e) => { e.preventDefault(); document.getElementById('intelligence')?.scrollIntoView({ behavior: 'smooth' }); }}
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light cursor-pointer"
           >
             Intelligence
           </a>
           <a 
             href="#use-cases" 
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+            onClick={(e) => { e.preventDefault(); document.getElementById('use-cases')?.scrollIntoView({ behavior: 'smooth' }); }}
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light cursor-pointer"
           >
             Use Cases
           </a>
           <a 
             href="#faq" 
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+            onClick={(e) => { e.preventDefault(); document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' }); }}
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light cursor-pointer"
           >
             FAQ
           </a>

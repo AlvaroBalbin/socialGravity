@@ -65,7 +65,7 @@ export default function CTASection() {
             transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s',
           }}
         >
-          No credit card required.
+          Try it free for now.
         </p>
       </div>
     </section>
