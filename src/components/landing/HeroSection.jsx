@@ -173,7 +173,7 @@ function HeroOrbit() {
 
 export default function HeroSection() {
   return (
-    <section className="min-h-[90vh] flex flex-col items-center justify-center px-6 py-20 bg-white">
+    <section className="min-h-[90vh] flex flex-col items-center justify-center px-6 pt-32 pb-20 bg-white">
       <div className="max-w-4xl mx-auto text-center">
         {/* Headline */}
         <h1 
