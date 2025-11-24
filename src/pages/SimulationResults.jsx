@@ -20,9 +20,9 @@ export default function SimulationResults() {
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Left: Gravity Visualization */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Orbit Area */}
-          <div className="flex-1 p-8">
+          <div className="flex-1 p-6">
             <GravityOrbit 
               onPersonaSelect={handlePersonaSelect}
               selectedPersona={selectedPersona}
@@ -39,13 +39,13 @@ export default function SimulationResults() {
         </div>
 
         {/* Right: Analytics Panel */}
-        <div className="p-6 border-l border-gray-50 bg-gray-50/30">
+        <div className="p-5 border-l border-gray-100 bg-gray-50/40">
           <AnalyticsPanel selectedPersona={selectedPersona} />
         </div>
       </div>
 
       {/* Help Button */}
-      <button className="fixed bottom-6 right-6 w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors">
+      <button className="fixed bottom-5 right-5 w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors">
         <HelpCircle className="w-4 h-4 text-white" strokeWidth={1.5} />
       </button>
     </div>
