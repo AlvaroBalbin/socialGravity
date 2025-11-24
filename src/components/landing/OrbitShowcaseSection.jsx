@@ -25,18 +25,18 @@ function PersonaInfoBox({ name, score, attention, style }) {
 function ShowcaseOrbit() {
   // 12 persona dots with orbital properties
   const dots = [
-    { distance: 38, angle: 30, size: 'large', color: '#3E4248', duration: 16, hasCard: true, cardInfo: { name: 'Trend-Seeker', score: 74, attention: 'Full' } },
-    { distance: 42, angle: 70, size: 'medium', color: '#7C8288', duration: 15 },
-    { distance: 36, angle: 110, size: 'large', color: '#3E4248', duration: 17 },
-    { distance: 44, angle: 150, size: 'small', color: '#B3B9BF', duration: 14 },
-    { distance: 40, angle: 190, size: 'medium', color: '#7C8288', duration: 16 },
-    { distance: 38, angle: 230, size: 'large', color: '#3E4248', duration: 15 },
-    { distance: 46, angle: 270, size: 'small', color: '#B3B9BF', duration: 18 },
-    { distance: 42, angle: 310, size: 'medium', color: '#7C8288', duration: 14, hasCard: true, cardInfo: { name: 'Night Owl', score: 68, attention: 'Partial' } },
-    { distance: 34, angle: 350, size: 'large', color: '#3E4248', duration: 17 },
-    { distance: 48, angle: 50, size: 'small', color: '#B3B9BF', duration: 16 },
-    { distance: 35, angle: 170, size: 'medium', color: '#7C8288', duration: 15 },
-    { distance: 45, angle: 250, size: 'small', color: '#B3B9BF', duration: 14 },
+    { distance: 38, angle: 30, size: 'large', color: '#3E4248', duration: 32, hasCard: true, cardInfo: { name: 'Trend-Seeker', score: 74, attention: 'Full' } },
+    { distance: 42, angle: 70, size: 'medium', color: '#7C8288', duration: 30 },
+    { distance: 36, angle: 110, size: 'large', color: '#3E4248', duration: 34 },
+    { distance: 44, angle: 150, size: 'small', color: '#B3B9BF', duration: 28 },
+    { distance: 40, angle: 190, size: 'medium', color: '#7C8288', duration: 32 },
+    { distance: 38, angle: 230, size: 'large', color: '#3E4248', duration: 30 },
+    { distance: 46, angle: 270, size: 'small', color: '#B3B9BF', duration: 36 },
+    { distance: 42, angle: 310, size: 'medium', color: '#7C8288', duration: 28, hasCard: true, cardInfo: { name: 'Night Owl', score: 68, attention: 'Partial' } },
+    { distance: 34, angle: 350, size: 'large', color: '#3E4248', duration: 34 },
+    { distance: 48, angle: 50, size: 'small', color: '#B3B9BF', duration: 32 },
+    { distance: 35, angle: 170, size: 'medium', color: '#7C8288', duration: 30 },
+    { distance: 45, angle: 250, size: 'small', color: '#B3B9BF', duration: 28 },
   ];
 
   // Size classes (35-45% larger)
