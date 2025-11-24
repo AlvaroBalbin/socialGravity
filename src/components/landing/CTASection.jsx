@@ -9,7 +9,7 @@ export default function CTASection() {
       <div className="max-w-2xl mx-auto text-center">
         {/* Headline */}
         <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-8">
-          Turn intuition into insight.
+          Simulate everything.
         </h2>
         
         {/* CTA Button */}
