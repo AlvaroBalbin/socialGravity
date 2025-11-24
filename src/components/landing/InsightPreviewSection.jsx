@@ -47,8 +47,11 @@ const cards = [
 
 export default function InsightPreviewSection() {
   return (
-    <section className="py-28 px-6">
+    <section className="py-20 px-6">
       <div className="max-w-5xl mx-auto">
+        <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight text-center mb-12">
+          See How Your Content Performs at a Glance
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {cards.map((card) => {
             const Icon = card.icon;
