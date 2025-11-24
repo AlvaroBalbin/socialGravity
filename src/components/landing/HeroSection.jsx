@@ -203,10 +203,7 @@ export default function HeroSection() {
           </a>
         </div>
         
-        {/* Hero Visual */}
-        <div className="mt-16">
-          <HeroOrbit />
-        </div>
+
       </div>
     </section>
   );
