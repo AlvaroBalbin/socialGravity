@@ -175,11 +175,11 @@ export default function OrbitShowcaseSection() {
             A new way to "see" resonance.
           </h2>
           <p className="text-sm text-gray-500 font-light max-w-md mx-auto leading-relaxed">
-            Each dot represents a persona.<br />
-            Closer means higher engagement.<br />
-            Darker means stronger pull.<br />
-            The orbit becomes your creative compass.
-          </p>
+                        Every dot is an AI persona.<br />
+                        The closer they drift, the more engaged they are.<br />
+                        The darker they appear, the more they care.<br />
+                        The orbit visualizes your content's pull.
+                      </p>
         </div>
         
         {/* Visual */}
