@@ -5,17 +5,17 @@ import { ArrowRight } from 'lucide-react';
 
 // Mini orbit visual for hero
 function HeroOrbit() {
-  // Dots with orbital properties: distance from center, initial angle, size class, orbit duration
+  // Dots with orbital properties: distance from center, initial angle, size class, orbit duration (slowed 50%)
   const dots = [
-    { distance: 28, angle: 0, sizeClass: 'large', duration: 14 },
-    { distance: 38, angle: 40, sizeClass: 'medium', duration: 16 },
-    { distance: 22, angle: 85, sizeClass: 'large', duration: 13 },
-    { distance: 42, angle: 130, sizeClass: 'small', duration: 18 },
-    { distance: 32, angle: 175, sizeClass: 'medium', duration: 15 },
-    { distance: 45, angle: 220, sizeClass: 'small', duration: 19 },
-    { distance: 25, angle: 265, sizeClass: 'large', duration: 12.5 },
-    { distance: 40, angle: 310, sizeClass: 'medium', duration: 17 },
-    { distance: 35, angle: 355, sizeClass: 'small', duration: 16.5 },
+    { distance: 28, angle: 0, sizeClass: 'large', duration: 28 },
+    { distance: 38, angle: 40, sizeClass: 'medium', duration: 32 },
+    { distance: 22, angle: 85, sizeClass: 'large', duration: 26 },
+    { distance: 42, angle: 130, sizeClass: 'small', duration: 36 },
+    { distance: 32, angle: 175, sizeClass: 'medium', duration: 30 },
+    { distance: 45, angle: 220, sizeClass: 'small', duration: 38 },
+    { distance: 25, angle: 265, sizeClass: 'large', duration: 25 },
+    { distance: 40, angle: 310, sizeClass: 'medium', duration: 34 },
+    { distance: 35, angle: 355, sizeClass: 'small', duration: 33 },
   ];
 
   // Size classes (40-60% larger than before)
@@ -161,7 +161,9 @@ export default function HeroSection() {
         </div>
         
         {/* Hero Visual */}
-        <HeroOrbit />
+        <div className="mt-8">
+          <HeroOrbit />
+        </div>
       </div>
     </section>
   );
