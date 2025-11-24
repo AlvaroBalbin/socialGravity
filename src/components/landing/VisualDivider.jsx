@@ -2,10 +2,10 @@ import React from 'react';
 
 export default function VisualDivider() {
   return (
-    <div className="py-8 flex items-center justify-center gap-3">
+    <div className="py-16 flex items-center justify-center gap-3">
       {/* Animated dots flowing downward */}
-      <div className="flex flex-col items-center gap-2">
-        {[0, 1, 2].map((i) => (
+      <div className="flex flex-col items-center gap-3">
+        {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className="w-1.5 h-1.5 rounded-full bg-gray-300"
