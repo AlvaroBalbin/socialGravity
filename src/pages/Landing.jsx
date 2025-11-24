@@ -4,6 +4,7 @@ import WhatItDoesSection from '@/components/landing/WhatItDoesSection';
 import OrbitShowcaseSection from '@/components/landing/OrbitShowcaseSection';
 import InsightPreviewSection from '@/components/landing/InsightPreviewSection';
 import WhyItMattersSection from '@/components/landing/WhyItMattersSection';
+import FAQSection from '@/components/landing/FAQSection';
 import CTASection from '@/components/landing/CTASection';
 import Footer from '@/components/landing/Footer';
 
@@ -15,7 +16,8 @@ export default function Landing() {
               <WhatItDoesSection />
               <InsightPreviewSection />
       <WhyItMattersSection />
-      <CTASection />
+              <FAQSection />
+              <CTASection />
       <Footer />
     </div>
   );
