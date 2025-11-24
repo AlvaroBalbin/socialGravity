@@ -1,5 +1,6 @@
 import React from 'react';
 import HeroSection from '@/components/landing/HeroSection';
+import VisualDivider from '@/components/landing/VisualDivider';
 import WhatItDoesSection from '@/components/landing/WhatItDoesSection';
 import OrbitShowcaseSection from '@/components/landing/OrbitShowcaseSection';
 import InsightPreviewSection from '@/components/landing/InsightPreviewSection';
