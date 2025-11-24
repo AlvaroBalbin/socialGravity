@@ -11,8 +11,8 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-white">
       <HeroSection />
-      <WhatItDoesSection />
       <OrbitShowcaseSection />
+      <WhatItDoesSection />
       <InsightPreviewSection />
       <WhyItMattersSection />
       <CTASection />
