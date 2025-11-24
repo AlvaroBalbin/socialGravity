@@ -69,7 +69,7 @@ export default function FAQSection() {
           </div>
 
           {/* Right Column - Accordion */}
-          <div className="border-t border-gray-100">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
             {faqs.map((faq, index) => (
               <AccordionItem
                 key={index}
