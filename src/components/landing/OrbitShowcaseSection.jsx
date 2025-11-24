@@ -1,66 +1,164 @@
 import React from 'react';
 
+// Persona info box component
+function PersonaInfoBox({ name, score, attention, style }) {
+  return (
+    <div className="absolute pointer-events-none" style={style}>
+      {/* Card */}
+      <div 
+        className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-gray-100/50"
+        style={{
+          width: '140px',
+          boxShadow: '0 4px 18px rgba(0,0,0,0.08)',
+        }}
+      >
+        <p className="text-[11px] font-medium text-gray-800 leading-tight mb-0.5">{name}</p>
+        <p className="text-[10px] text-gray-500 leading-tight">Score: {score}</p>
+        <p className="text-[10px] text-gray-400 leading-tight">{attention}</p>
+      </div>
+      {/* Connector stem */}
+      <div className="w-px h-8 mx-auto" style={{ backgroundColor: '#D3D6DB' }} />
+    </div>
+  );
+}
+
 function ShowcaseOrbit() {
+  // 12 persona dots with orbital properties
   const dots = [
-    { x: 15, y: 35, size: 10, opacity: 0.35 },
-    { x: 25, y: 20, size: 8, opacity: 0.3 },
-    { x: 35, y: 45, size: 16, opacity: 0.7 },
-    { x: 42, y: 28, size: 12, opacity: 0.5 },
-    { x: 50, y: 60, size: 22, opacity: 0.9 },
-    { x: 58, y: 38, size: 14, opacity: 0.6 },
-    { x: 65, y: 55, size: 18, opacity: 0.75 },
-    { x: 72, y: 25, size: 9, opacity: 0.4 },
-    { x: 78, y: 48, size: 11, opacity: 0.45 },
-    { x: 85, y: 35, size: 7, opacity: 0.28 },
+    { distance: 38, angle: 30, size: 'large', color: '#3E4248', duration: 16, hasCard: true, cardInfo: { name: 'Trend-Seeker', score: 74, attention: 'Full' } },
+    { distance: 42, angle: 70, size: 'medium', color: '#7C8288', duration: 15 },
+    { distance: 36, angle: 110, size: 'large', color: '#3E4248', duration: 17 },
+    { distance: 44, angle: 150, size: 'small', color: '#B3B9BF', duration: 14 },
+    { distance: 40, angle: 190, size: 'medium', color: '#7C8288', duration: 16 },
+    { distance: 38, angle: 230, size: 'large', color: '#3E4248', duration: 15 },
+    { distance: 46, angle: 270, size: 'small', color: '#B3B9BF', duration: 18 },
+    { distance: 42, angle: 310, size: 'medium', color: '#7C8288', duration: 14, hasCard: true, cardInfo: { name: 'Night Owl', score: 68, attention: 'Partial' } },
+    { distance: 34, angle: 350, size: 'large', color: '#3E4248', duration: 17 },
+    { distance: 48, angle: 50, size: 'small', color: '#B3B9BF', duration: 16 },
+    { distance: 35, angle: 170, size: 'medium', color: '#7C8288', duration: 15 },
+    { distance: 45, angle: 250, size: 'small', color: '#B3B9BF', duration: 14 },
   ];
 
+  // Size classes (35-45% larger)
+  const sizes = {
+    small: 14,
+    medium: 20,
+    large: 26,
+  };
+
   return (
-    <div className="relative w-full max-w-3xl aspect-[2/1] mx-auto">
-      {/* Soft glow */}
+    <div className="relative w-full max-w-xl aspect-square mx-auto">
+      {/* Soft ambient glow */}
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 60% 80% at 50% 50%, rgba(0,0,0,0.02) 0%, transparent 60%)',
+          background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.015) 0%, transparent 50%)',
         }}
       />
       
-      {/* Orbit rings - elliptical */}
-      <div className="absolute inset-x-[10%] inset-y-[15%] rounded-full border border-gray-100 opacity-30" />
-      <div className="absolute inset-x-[25%] inset-y-[25%] rounded-full border border-gray-100 opacity-25" />
-      <div className="absolute inset-x-[38%] inset-y-[35%] rounded-full border border-gray-100 opacity-20" />
+      {/* Concentric orbit rings (5-8% opacity) */}
+      <div className="absolute inset-[12%] rounded-full border border-gray-300" style={{ opacity: 0.08 }} />
+      <div className="absolute inset-[22%] rounded-full border border-gray-300" style={{ opacity: 0.07 }} />
+      <div className="absolute inset-[32%] rounded-full border border-gray-300" style={{ opacity: 0.06 }} />
+      <div className="absolute inset-[42%] rounded-full border border-gray-300" style={{ opacity: 0.05 }} />
       
-      {/* Center node */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white border border-gray-200 rounded-xl shadow-sm" />
+      {/* Central Video Icon - fixed and still */}
+      <div 
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-xl flex items-center justify-center z-10"
+        style={{
+          border: '1px solid #DDE1E5',
+          boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.06), 0 0 24px rgba(0,0,0,0.04)',
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path 
+            d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86a1 1 0 00-1.5.86z" 
+            fill="#9CA3AF"
+          />
+        </svg>
+      </div>
       
-      {/* Dots */}
-      {dots.map((dot, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full bg-gray-800"
-          style={{
-            width: `${dot.size}px`,
-            height: `${dot.size}px`,
-            left: `${dot.x}%`,
-            top: `${dot.y}%`,
-            opacity: dot.opacity,
-            transform: 'translate(-50%, -50%)',
-            animation: `float-showcase-${i % 3} ${8 + (i * 0.5)}s ease-in-out infinite`,
-          }}
-        />
-      ))}
+      {/* Orbiting Dots */}
+      {dots.map((dot, i) => {
+        const size = sizes[dot.size];
+        
+        return (
+          <div
+            key={i}
+            className="absolute left-1/2 top-1/2 pointer-events-none"
+            style={{
+              width: `${dot.distance * 2}%`,
+              height: `${dot.distance * 2}%`,
+              marginLeft: `-${dot.distance}%`,
+              marginTop: `-${dot.distance}%`,
+              animation: `orbitShowcase ${dot.duration}s linear infinite`,
+              animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
+            }}
+          >
+            {/* Persona info card - stays upright */}
+            {dot.hasCard && (
+              <div
+                className="absolute"
+                style={{
+                  left: '100%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  animation: `counterOrbitShowcase ${dot.duration}s linear infinite`,
+                  animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
+                }}
+              >
+                <PersonaInfoBox 
+                  name={dot.cardInfo.name}
+                  score={dot.cardInfo.score}
+                  attention={dot.cardInfo.attention}
+                  style={{
+                    left: '50%',
+                    bottom: `${size / 2 + 4}px`,
+                    transform: 'translateX(-50%)',
+                  }}
+                />
+              </div>
+            )}
+            
+            {/* The dot itself */}
+            <div
+              className="absolute rounded-full"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                backgroundColor: dot.color,
+                left: '100%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                animation: `wobbleShowcase ${6 + i * 0.3}s ease-in-out infinite, breatheShowcase ${5 + i * 0.2}s ease-in-out infinite`,
+              }}
+            />
+          </div>
+        );
+      })}
       
       <style>{`
-        @keyframes float-showcase-0 {
-          0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
-          50% { transform: translate(-50%, -50%) translateY(-5px); }
+        @keyframes orbitShowcase {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
-        @keyframes float-showcase-1 {
-          0%, 100% { transform: translate(-50%, -50%) translateX(0px); }
-          50% { transform: translate(-50%, -50%) translateX(5px); }
+        
+        @keyframes counterOrbitShowcase {
+          0% { transform: translate(-50%, -50%) rotate(0deg); }
+          100% { transform: translate(-50%, -50%) rotate(-360deg); }
         }
-        @keyframes float-showcase-2 {
+        
+        @keyframes wobbleShowcase {
           0%, 100% { transform: translate(-50%, -50%) translate(0px, 0px); }
-          50% { transform: translate(-50%, -50%) translate(3px, -3px); }
+          25% { transform: translate(-50%, -50%) translate(1px, -0.5px); }
+          50% { transform: translate(-50%, -50%) translate(-0.5px, 1px); }
+          75% { transform: translate(-50%, -50%) translate(-1px, -0.5px); }
+        }
+        
+        @keyframes breatheShowcase {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); }
+          50% { transform: translate(-50%, -50%) scale(1.02); }
         }
       `}</style>
     </div>
@@ -69,8 +167,8 @@ function ShowcaseOrbit() {
 
 export default function OrbitShowcaseSection() {
   return (
-    <section className="py-20 px-6">
-      <div className="max-w-5xl mx-auto">
+    <section className="py-20 px-6 pb-28">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-5">
