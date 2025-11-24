@@ -55,7 +55,7 @@ export default function FAQSection() {
   };
 
   return (
-    <section className="py-24 px-6 bg-white">
+    <section className="py-24 px-6 bg-[#ffffff]">
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16">
           {/* Left Column - Title & Subtitle */}
