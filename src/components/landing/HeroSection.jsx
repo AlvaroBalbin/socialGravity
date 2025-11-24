@@ -5,64 +5,122 @@ import { ArrowRight } from 'lucide-react';
 
 // Mini orbit visual for hero
 function HeroOrbit() {
+  // Dots with orbital properties: distance from center, initial angle, size class, orbit duration
   const dots = [
-    { x: 50, y: 18, size: 8, opacity: 0.3 },
-    { x: 22, y: 32, size: 12, opacity: 0.5 },
-    { x: 78, y: 28, size: 10, opacity: 0.4 },
-    { x: 35, y: 55, size: 18, opacity: 0.8 },
-    { x: 68, y: 62, size: 14, opacity: 0.6 },
-    { x: 50, y: 75, size: 16, opacity: 0.7 },
-    { x: 28, y: 70, size: 9, opacity: 0.35 },
-    { x: 72, y: 45, size: 11, opacity: 0.45 },
+    { distance: 18, angle: 0, sizeClass: 'large', duration: 14 },
+    { distance: 22, angle: 45, sizeClass: 'medium', duration: 15 },
+    { distance: 15, angle: 90, sizeClass: 'large', duration: 13 },
+    { distance: 25, angle: 135, sizeClass: 'small', duration: 17 },
+    { distance: 20, angle: 180, sizeClass: 'medium', duration: 14.5 },
+    { distance: 28, angle: 225, sizeClass: 'small', duration: 18 },
+    { distance: 17, angle: 270, sizeClass: 'large', duration: 12.5 },
+    { distance: 24, angle: 315, sizeClass: 'medium', duration: 16 },
   ];
 
+  // Size classes (40-60% larger than before)
+  const sizes = {
+    small: 16,
+    medium: 22,
+    large: 28,
+  };
+
+  // Color based on distance (closer = darker)
+  const getColor = (distance) => {
+    const lightness = 35 + (distance - 15) * 2.5; // 35-67% lightness range
+    return `hsl(220, 5%, ${lightness}%)`;
+  };
+
   return (
-    <div className="relative w-full max-w-[380px] aspect-square mx-auto">
-      {/* Soft glow */}
+    <div className="relative w-full max-w-[500px] aspect-square mx-auto">
+      {/* Soft ambient glow */}
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.025) 0%, transparent 50%)',
+          background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.018) 0%, transparent 45%)',
         }}
       />
       
-      {/* Orbit rings */}
-      <div className="absolute inset-[20%] rounded-full border border-gray-100 opacity-40" />
-      <div className="absolute inset-[35%] rounded-full border border-gray-100 opacity-30" />
-      <div className="absolute inset-[48%] rounded-full border border-gray-100 opacity-20" />
+      {/* Subtle orbit rings */}
+      <div className="absolute inset-[30%] rounded-full border border-gray-100/50" />
+      <div className="absolute inset-[38%] rounded-full border border-gray-100/40" />
+      <div className="absolute inset-[44%] rounded-full border border-gray-100/30" />
       
-      {/* Center node */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm" />
+      {/* Central Video Icon */}
+      <div 
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-xl flex items-center justify-center z-10"
+        style={{
+          border: '1px solid #DDE1E5',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06), 0 0 20px rgba(0,0,0,0.03)',
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path 
+            d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86a1 1 0 00-1.5.86z" 
+            fill="#9CA3AF"
+          />
+        </svg>
+      </div>
       
-      {/* Dots */}
-      {dots.map((dot, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full bg-gray-800"
-          style={{
-            width: `${dot.size}px`,
-            height: `${dot.size}px`,
-            left: `${dot.x}%`,
-            top: `${dot.y}%`,
-            opacity: dot.opacity,
-            transform: 'translate(-50%, -50%)',
-            animation: `float-hero-${i % 3} ${7 + i}s ease-in-out infinite`,
-          }}
-        />
-      ))}
+      {/* Orbiting Dots */}
+      {dots.map((dot, i) => {
+        const size = sizes[dot.sizeClass];
+        const color = getColor(dot.distance);
+        
+        return (
+          <div
+            key={i}
+            className="absolute left-1/2 top-1/2 pointer-events-none"
+            style={{
+              width: `${dot.distance * 2}%`,
+              height: `${dot.distance * 2}%`,
+              marginLeft: `-${dot.distance}%`,
+              marginTop: `-${dot.distance}%`,
+              animation: `orbit ${dot.duration}s ease-in-out infinite`,
+              animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
+            }}
+          >
+            <div
+              className="absolute rounded-full"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                backgroundColor: color,
+                left: '100%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                boxShadow: `0 2px 8px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.5) inset`,
+                animation: `wobble-${i % 3} ${3 + (i * 0.3)}s ease-in-out infinite, pulse ${4 + (i * 0.2)}s ease-in-out infinite`,
+              }}
+            />
+          </div>
+        );
+      })}
       
       <style>{`
-        @keyframes float-hero-0 {
-          0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
-          50% { transform: translate(-50%, -50%) translateY(-4px); }
+        @keyframes orbit {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
-        @keyframes float-hero-1 {
-          0%, 100% { transform: translate(-50%, -50%) translateX(0px); }
-          50% { transform: translate(-50%, -50%) translateX(4px); }
-        }
-        @keyframes float-hero-2 {
+        
+        @keyframes wobble-0 {
           0%, 100% { transform: translate(-50%, -50%) translate(0px, 0px); }
-          50% { transform: translate(-50%, -50%) translate(3px, -3px); }
+          25% { transform: translate(-50%, -50%) translate(2px, -1px); }
+          50% { transform: translate(-50%, -50%) translate(-1px, 2px); }
+          75% { transform: translate(-50%, -50%) translate(-2px, -1px); }
+        }
+        @keyframes wobble-1 {
+          0%, 100% { transform: translate(-50%, -50%) translate(0px, 0px); }
+          33% { transform: translate(-50%, -50%) translate(-2px, 1px); }
+          66% { transform: translate(-50%, -50%) translate(1px, -2px); }
+        }
+        @keyframes wobble-2 {
+          0%, 100% { transform: translate(-50%, -50%) translate(0px, 0px); }
+          50% { transform: translate(-50%, -50%) translate(2px, 2px); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          50% { transform: translate(-50%, -50%) scale(1.02); opacity: 0.92; }
         }
       `}</style>
     </div>
