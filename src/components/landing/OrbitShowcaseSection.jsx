@@ -148,6 +148,10 @@ function ShowcaseOrbit() {
           100% { transform: translate(-50%, -50%) rotate(-360deg); }
         }
         
+        .persona-card-wrapper {
+          transform-origin: center center;
+        }
+        
         @keyframes wobbleShowcase {
           0%, 100% { transform: translate(-50%, -50%) translate(0px, 0px); }
           25% { transform: translate(-50%, -50%) translate(1px, -0.5px); }
