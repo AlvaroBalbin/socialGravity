@@ -95,14 +95,13 @@ function ShowcaseOrbit() {
               animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
             }}
           >
-            {/* Persona info card - stays upright */}
+            {/* Persona info card - stays upright, always above dot */}
             {dot.hasCard && (
               <div
                 className="absolute"
                 style={{
                   left: '100%',
                   top: '50%',
-                  transform: 'translate(-50%, -50%)',
                   animation: `counterOrbitShowcase ${dot.duration}s linear infinite`,
                   animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
                 }}
@@ -114,7 +113,7 @@ function ShowcaseOrbit() {
                   style={{
                     left: '50%',
                     bottom: `${size / 2 + 4}px`,
-                    transform: 'translateX(-50%)',
+                    transform: 'translate(-50%, 0)',
                   }}
                 />
               </div>
