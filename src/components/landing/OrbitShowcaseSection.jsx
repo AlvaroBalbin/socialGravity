@@ -166,22 +166,52 @@ function ShowcaseOrbit() {
 }
 
 export default function OrbitShowcaseSection() {
+  const [headingRef, setHeadingRef] = React.useState(null);
+  const [headingInView, setHeadingInView] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!headingRef) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setHeadingInView(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.1 });
+    observer.observe(headingRef);
+    return () => observer.disconnect();
+  }, [headingRef]);
+
   return (
     <section className="py-20 px-6 pb-28 bg-[#FAFAFA]">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-5">
+          <h2 
+            ref={setHeadingRef}
+            className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-5"
+            style={{
+              opacity: headingInView ? 1 : 0,
+              transform: headingInView ? 'translateY(0)' : 'translateY(10px)',
+              transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
             A new way to "see" resonance.
           </h2>
-          <p className="text-sm text-gray-500 font-light max-w-md mx-auto leading-relaxed">
-                        Every dot is an AI persona.<br />
-                        The closer they drift, the more engaged they are.<br />
-                        The darker they appear, the more they care.<br />
-                        The orbit visualizes your content's pull.
-                      </p>
+          <p 
+            className="text-sm text-gray-500 font-light max-w-md mx-auto leading-relaxed"
+            style={{
+              opacity: headingInView ? 1 : 0,
+              transform: headingInView ? 'translateY(0)' : 'translateY(10px)',
+              transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s',
+            }}
+          >
+                      Every dot is an AI persona.<br />
+                      The closer they drift, the more engaged they are.<br />
+                      The darker they appear, the more they care.<br />
+                      The orbit visualizes your content's pull.
+                    </p>
         </div>
-        
+
         {/* Visual */}
         <ShowcaseOrbit />
       </div>

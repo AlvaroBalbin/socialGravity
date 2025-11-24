@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 const faqs = [
@@ -24,9 +24,35 @@ const faqs = [
   },
 ];
 
-function AccordionItem({ question, answer, isOpen, onClick }) {
+function useInView() {
+  const ref = useRef(null);
+  const [isInView, setIsInView] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsInView(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.1 });
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, isInView];
+}
+
+function AccordionItem({ question, answer, isOpen, onClick, delay, isInView }) {
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
+    <div 
+      className="border-b border-gray-100 last:border-b-0"
+      style={{
+        opacity: isInView ? 1 : 0,
+        transform: isInView ? 'translateY(0)' : 'translateY(6px)',
+        transition: `opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s`,
+      }}
+    >
       <button
         onClick={onClick}
         className="w-full flex items-center justify-between py-5 text-left group"
@@ -37,9 +63,14 @@ function AccordionItem({ question, answer, isOpen, onClick }) {
         />
       </button>
       <div 
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 pb-5' : 'max-h-0'}`}
+        className="overflow-hidden transition-all duration-300 ease-out"
+        style={{
+          maxHeight: isOpen ? '400px' : '0px',
+          opacity: isOpen ? 1 : 0,
+          transition: 'max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out',
+        }}
       >
-        <p className="text-sm text-gray-500 font-light leading-relaxed pr-8">
+        <p className="text-sm text-gray-500 font-light leading-relaxed pr-8 pb-5">
           {answer}
         </p>
       </div>
@@ -49,6 +80,8 @@ function AccordionItem({ question, answer, isOpen, onClick }) {
 
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState(null);
+  const [titleRef, titleInView] = useInView();
+  const [accordionRef, accordionInView] = useInView();
 
   const handleToggle = (index) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -59,17 +92,31 @@ export default function FAQSection() {
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16">
           {/* Left Column - Title & Subtitle */}
-          <div>
-            <h2 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-4">
+          <div ref={titleRef}>
+            <h2 
+              className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight mb-4"
+              style={{
+                opacity: titleInView ? 1 : 0,
+                transform: titleInView ? 'translateY(0)' : 'translateY(10px)',
+                transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            >
               Welcome to the future of content and creativity.
             </h2>
-            <p className="text-sm text-gray-500 font-light leading-relaxed">
+            <p 
+              className="text-sm text-gray-500 font-light leading-relaxed"
+              style={{
+                opacity: titleInView ? 1 : 0,
+                transform: titleInView ? 'translateY(0)' : 'translateY(10px)',
+                transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s',
+              }}
+            >
               Still have questions? Feel free to contact our team.
             </p>
           </div>
 
           {/* Right Column - Accordion */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div ref={accordionRef} className="bg-white rounded-2xl border border-gray-100 p-6">
             {faqs.map((faq, index) => (
               <AccordionItem
                 key={index}
@@ -77,6 +124,8 @@ export default function FAQSection() {
                 answer={faq.answer}
                 isOpen={openIndex === index}
                 onClick={() => handleToggle(index)}
+                delay={index * 0.07}
+                isInView={accordionInView}
               />
             ))}
           </div>

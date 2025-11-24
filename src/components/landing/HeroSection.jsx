@@ -176,18 +176,36 @@ export default function HeroSection() {
     <section className="min-h-[90vh] flex flex-col items-center justify-center px-6 py-20 bg-white">
       <div className="max-w-4xl mx-auto text-center">
         {/* Headline */}
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 tracking-tight mb-6">
+        <h1 
+          className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 tracking-tight mb-6"
+          style={{
+            animation: 'heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            opacity: 0,
+          }}
+        >
           Predict Engagement.<br />
           <span className="text-gray-400">Before you post.</span>
         </h1>
         
         {/* Sub-headline */}
-        <p className="text-base md:text-lg text-gray-500 font-light max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p 
+          className="text-base md:text-lg text-gray-500 font-light max-w-2xl mx-auto mb-10 leading-relaxed"
+          style={{
+            animation: 'heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards',
+            opacity: 0,
+          }}
+        >
           AI simulates how different personas react to your content — so creators can predict performance with clarity, not guesswork.
         </p>
         
         {/* CTAs */}
-        <div className="flex items-center justify-center gap-6 mb-16">
+        <div 
+          className="flex items-center justify-center gap-6 mb-16"
+          style={{
+            animation: 'heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s forwards',
+            opacity: 0,
+          }}
+        >
           <Link 
             to={createPageUrl('SimulationResults')}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-colors"
@@ -202,7 +220,19 @@ export default function HeroSection() {
             Learn More
           </a>
         </div>
-        
+
+        <style>{`
+          @keyframes heroFadeUp {
+            from {
+              opacity: 0;
+              transform: translateY(8px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
 
       </div>
     </section>
