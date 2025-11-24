@@ -132,13 +132,13 @@ export default function FAQSection() {
               
               {/* Orbiting dots */}
               {[
-                { distance: 20, angle: 20, size: 14, color: '#4B5563', duration: 22 },
-                { distance: 17, angle: 90, size: 11, color: '#6B7280', duration: 18 },
-                { distance: 24, angle: 150, size: 8, color: '#9CA3AF', duration: 26 },
-                { distance: 14, angle: 220, size: 12, color: '#4B5563', duration: 16 },
-                { distance: 22, angle: 280, size: 9, color: '#6B7280', duration: 24 },
-                { distance: 18, angle: 340, size: 10, color: '#9CA3AF', duration: 20 },
-                { distance: 12, angle: 60, size: 7, color: '#6B7280', duration: 14 },
+                { distance: 18, angle: 0, size: 14, color: '#4B5563', duration: 22 },
+                { distance: 18, angle: 51, size: 11, color: '#6B7280', duration: 18 },
+                { distance: 18, angle: 102, size: 8, color: '#9CA3AF', duration: 26 },
+                { distance: 18, angle: 154, size: 12, color: '#4B5563', duration: 16 },
+                { distance: 18, angle: 205, size: 9, color: '#6B7280', duration: 24 },
+                { distance: 18, angle: 257, size: 10, color: '#9CA3AF', duration: 20 },
+                { distance: 18, angle: 308, size: 7, color: '#6B7280', duration: 14 },
               ].map((dot, i) => (
                 <div
                   key={i}
