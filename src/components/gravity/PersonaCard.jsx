@@ -1,31 +1,28 @@
 import React from 'react';
-import { X } from 'lucide-react';
 
-export default function PersonaCard({ persona, position, onClose }) {
+export default function PersonaCard({ persona, position }) {
+  // Calculate card position to avoid going off-screen
+  const cardX = Math.min(Math.max(position.x, 120), 360);
+  const cardY = position.y < 180 ? position.y + 40 : position.y - 200;
+  
   return (
     <div 
-      className="absolute z-20 bg-white rounded-2xl shadow-lg border border-gray-100 p-5 w-64 animate-in fade-in duration-200"
+      className="absolute z-30 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 w-56 pointer-events-none"
       style={{
-        left: `${Math.min(Math.max(position.x, 140), 360)}px`,
-        top: `${Math.max(position.y - 20, 10)}px`,
+        left: `${cardX}px`,
+        top: `${cardY}px`,
         transform: 'translateX(-50%)',
+        animation: 'fadeIn 0.15s ease-out',
       }}
     >
-      <button 
-        onClick={onClose}
-        className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        <X className="w-4 h-4" />
-      </button>
-      
-      <h3 className="font-semibold text-gray-900 text-base mb-3">{persona.name}</h3>
+      <h3 className="font-semibold text-gray-900 text-sm mb-2.5">{persona.name}</h3>
       
       {/* Tags */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {persona.tags.map((tag, index) => (
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {persona.tags.slice(0, 3).map((tag, index) => (
           <span 
             key={index}
-            className="px-3 py-1 bg-gray-50 border border-gray-200 rounded-full text-xs text-gray-700"
+            className="px-2.5 py-0.5 bg-gray-50 border border-gray-150 rounded-full text-[11px] text-gray-600"
           >
             {tag}
           </span>
@@ -33,19 +30,26 @@ export default function PersonaCard({ persona, position, onClose }) {
       </div>
       
       {/* Stats */}
-      <div className="space-y-1 mb-4">
-        <p className="text-sm text-gray-600">
-          Watch time: <span className="text-gray-900 font-medium">{persona.watchTime}</span>
+      <div className="space-y-0.5 mb-3">
+        <p className="text-xs text-gray-500">
+          Watch time: <span className="text-gray-800 font-medium">{persona.watchTime}</span>
         </p>
-        <p className="text-sm text-gray-600">
-          Engagement: <span className="text-gray-900 font-medium">{persona.engagement}</span>
+        <p className="text-xs text-gray-500">
+          Engagement: <span className="text-gray-800 font-medium">{persona.engagement}%</span>
         </p>
       </div>
       
       {/* Insight */}
-      <p className="text-sm text-gray-500 italic border-t border-gray-100 pt-3">
+      <p className="text-[11px] text-gray-400 italic border-t border-gray-100 pt-2.5">
         {persona.insight}
       </p>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(5px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
