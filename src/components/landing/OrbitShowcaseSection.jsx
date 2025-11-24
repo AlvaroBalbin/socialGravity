@@ -102,6 +102,7 @@ function ShowcaseOrbit() {
                 style={{
                   left: '100%',
                   top: '50%',
+                  transform: 'translate(-50%, -50%)',
                   animation: `counterOrbitShowcase ${dot.duration}s linear infinite`,
                   animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
                 }}
@@ -113,7 +114,7 @@ function ShowcaseOrbit() {
                   style={{
                     left: '50%',
                     bottom: `${size / 2 + 4}px`,
-                    transform: 'translate(-50%, 0)',
+                    transform: 'translateX(-50%)',
                   }}
                 />
               </div>
@@ -144,8 +145,8 @@ function ShowcaseOrbit() {
         }
         
         @keyframes counterOrbitShowcase {
-          0% { transform: translate(-50%, 0) rotate(0deg); }
-          100% { transform: translate(-50%, 0) rotate(-360deg); }
+          0% { transform: translate(-50%, -50%) rotate(0deg); }
+          100% { transform: translate(-50%, -50%) rotate(-360deg); }
         }
         
         @keyframes wobbleShowcase {
