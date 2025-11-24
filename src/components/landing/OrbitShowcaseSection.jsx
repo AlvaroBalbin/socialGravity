@@ -28,7 +28,7 @@ function ShowcaseOrbit() {
     { distance: 32, angle: 30, size: 'large', color: '#3E4248', duration: 32, hasCard: true, cardInfo: { name: 'Trend-Seeker', score: 74, attention: 'Full' } },
     { distance: 42, angle: 70, size: 'medium', color: '#7C8288', duration: 30 },
     { distance: 24, angle: 110, size: 'large', color: '#3E4248', duration: 34 },
-    { distance: 44, angle: 60, size: 'small', color: '#B3B9BF', duration: 28, hasCard: true, cardInfo: { name: 'Nature Lover', score: 37, attention: 'Weak' } },
+    { distance: 44, angle: 150, size: 'small', color: '#B3B9BF', duration: 28, hasCard: true, cardInfo: { name: 'Nature Lover', score: 37, attention: 'Weak' } },
     { distance: 28, angle: 190, size: 'medium', color: '#7C8288', duration: 32 },
     { distance: 38, angle: 230, size: 'large', color: '#3E4248', duration: 30 },
     { distance: 46, angle: 270, size: 'small', color: '#B3B9BF', duration: 36 },
@@ -95,13 +95,14 @@ function ShowcaseOrbit() {
               animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
             }}
           >
-            {/* Persona info card - stays upright, always above dot */}
+            {/* Persona info card - stays upright */}
             {dot.hasCard && (
               <div
                 className="absolute"
                 style={{
                   left: '100%',
                   top: '50%',
+                  transform: 'translate(-50%, -50%)',
                   animation: `counterOrbitShowcase ${dot.duration}s linear infinite`,
                   animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
                 }}
@@ -113,7 +114,7 @@ function ShowcaseOrbit() {
                   style={{
                     left: '50%',
                     bottom: `${size / 2 + 4}px`,
-                    transform: 'translate(-50%, 0)',
+                    transform: 'translateX(-50%)',
                   }}
                 />
               </div>
@@ -146,10 +147,6 @@ function ShowcaseOrbit() {
         @keyframes counterOrbitShowcase {
           0% { transform: translate(-50%, -50%) rotate(0deg); }
           100% { transform: translate(-50%, -50%) rotate(-360deg); }
-        }
-        
-        .persona-card-wrapper {
-          transform-origin: center center;
         }
         
         @keyframes wobbleShowcase {
