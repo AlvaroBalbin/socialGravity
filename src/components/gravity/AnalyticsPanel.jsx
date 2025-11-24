@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Heart, MessageCircle, Share2, Bookmark, UserPlus, Clock, TrendingUp } from 'lucide-react';
 
 const defaultData = {
@@ -21,6 +21,52 @@ const defaultData = {
     'Suggestion: Tighten the hook to <0.7s for maximum pull and reduce swipe probability by ~40%.'
   ]
 };
+
+function RetentionCurve({ retentionCurve, videoDuration = 12 }) {
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+  const segmentDuration = videoDuration / retentionCurve.length;
+
+  return (
+    <div>
+      <span className="text-xs text-gray-600 block mb-3">Retention Curve</span>
+      <div className="flex items-end gap-1 h-8 relative">
+        {retentionCurve.map((value, index) => {
+          const startTime = (index * segmentDuration).toFixed(1);
+          const endTime = ((index + 1) * segmentDuration).toFixed(1);
+          
+          return (
+            <div
+              key={index}
+              className="flex-1 bg-gray-700 rounded-sm transition-all duration-300 cursor-pointer hover:opacity-100 relative"
+              style={{ 
+                height: `${(value / 100) * 100}%`,
+                opacity: hoveredIndex === index ? 1 : 0.4 + (value / 100) * 0.6
+              }}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            >
+              {hoveredIndex === index && (
+                <div 
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-white border border-gray-200 rounded-lg shadow-md whitespace-nowrap z-10 pointer-events-none"
+                  style={{ animation: 'fadeIn 0.15s ease-out' }}
+                >
+                  <p className="text-[10px] text-gray-700 font-medium">{startTime}s – {endTime}s</p>
+                  <p className="text-[10px] text-gray-400">{value}% retained</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export default function AnalyticsPanel({ selectedPersona }) {
   const engagementData = [
@@ -192,21 +238,7 @@ export default function AnalyticsPanel({ selectedPersona }) {
         </div>
         
         {/* Retention Curve */}
-        <div>
-          <span className="text-xs text-gray-600 block mb-3">Retention Curve</span>
-          <div className="flex items-end gap-1 h-8">
-            {retentionCurve.map((value, index) => (
-              <div
-                key={index}
-                className="flex-1 bg-gray-700 rounded-sm transition-all duration-500"
-                style={{ 
-                  height: `${(value / 100) * 100}%`,
-                  opacity: 0.4 + (value / 100) * 0.6
-                }}
-              />
-            ))}
-          </div>
-        </div>
+        <RetentionCurve retentionCurve={retentionCurve} videoDuration={12} />
       </div>
 
       {/* QUALITATIVE INSIGHTS */}
