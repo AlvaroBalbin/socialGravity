@@ -7,14 +7,15 @@ import { ArrowRight } from 'lucide-react';
 function HeroOrbit() {
   // Dots with orbital properties: distance from center, initial angle, size class, orbit duration
   const dots = [
-    { distance: 18, angle: 0, sizeClass: 'large', duration: 14 },
-    { distance: 22, angle: 45, sizeClass: 'medium', duration: 15 },
-    { distance: 15, angle: 90, sizeClass: 'large', duration: 13 },
-    { distance: 25, angle: 135, sizeClass: 'small', duration: 17 },
-    { distance: 20, angle: 180, sizeClass: 'medium', duration: 14.5 },
-    { distance: 28, angle: 225, sizeClass: 'small', duration: 18 },
-    { distance: 17, angle: 270, sizeClass: 'large', duration: 12.5 },
-    { distance: 24, angle: 315, sizeClass: 'medium', duration: 16 },
+    { distance: 28, angle: 0, sizeClass: 'large', duration: 14 },
+    { distance: 38, angle: 40, sizeClass: 'medium', duration: 16 },
+    { distance: 22, angle: 85, sizeClass: 'large', duration: 13 },
+    { distance: 42, angle: 130, sizeClass: 'small', duration: 18 },
+    { distance: 32, angle: 175, sizeClass: 'medium', duration: 15 },
+    { distance: 45, angle: 220, sizeClass: 'small', duration: 19 },
+    { distance: 25, angle: 265, sizeClass: 'large', duration: 12.5 },
+    { distance: 40, angle: 310, sizeClass: 'medium', duration: 17 },
+    { distance: 35, angle: 355, sizeClass: 'small', duration: 16.5 },
   ];
 
   // Size classes (40-60% larger than before)
@@ -26,12 +27,12 @@ function HeroOrbit() {
 
   // Color based on distance (closer = darker)
   const getColor = (distance) => {
-    const lightness = 35 + (distance - 15) * 2.5; // 35-67% lightness range
+    const lightness = 35 + (distance - 20) * 1.2; // 35-65% lightness range
     return `hsl(220, 5%, ${lightness}%)`;
   };
 
   return (
-    <div className="relative w-full max-w-[500px] aspect-square mx-auto">
+    <div className="relative w-full max-w-[650px] aspect-[1.6/1] mx-auto">
       {/* Soft ambient glow */}
       <div 
         className="absolute inset-0 pointer-events-none"
@@ -40,10 +41,10 @@ function HeroOrbit() {
         }}
       />
       
-      {/* Subtle orbit rings */}
-      <div className="absolute inset-[30%] rounded-full border border-gray-100/50" />
-      <div className="absolute inset-[38%] rounded-full border border-gray-100/40" />
-      <div className="absolute inset-[44%] rounded-full border border-gray-100/30" />
+      {/* Subtle orbit rings - elliptical for wider spread */}
+      <div className="absolute inset-x-[15%] inset-y-[20%] rounded-full border border-gray-100/50" />
+      <div className="absolute inset-x-[25%] inset-y-[30%] rounded-full border border-gray-100/40" />
+      <div className="absolute inset-x-[35%] inset-y-[38%] rounded-full border border-gray-100/30" />
       
       {/* Central Video Icon */}
       <div 
