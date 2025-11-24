@@ -144,10 +144,10 @@ export default function FAQSection() {
                   key={i}
                   className="absolute left-1/2 top-1/2 pointer-events-none"
                   style={{
-                    width: `${dot.distance * 2.5}%`,
-                    height: `${dot.distance * 2}%`,
-                    marginLeft: `-${dot.distance * 1.25}%`,
-                    marginTop: `-${dot.distance}%`,
+                    width: `${dot.distance * 2}%`,
+                    height: `${dot.distance * 1.8}%`,
+                    marginLeft: `-${dot.distance}%`,
+                    marginTop: `-${dot.distance * 0.9}%`,
                     animation: `faqOrbit ${dot.duration}s linear infinite`,
                     animationDelay: `-${(dot.angle / 360) * dot.duration}s`,
                   }}
