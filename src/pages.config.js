@@ -8,6 +8,6 @@ export const PAGES = {
 }
 
 export const pagesConfig = {
-    mainPage: "SimulationResults",
+    mainPage: "Landing",
     Pages: PAGES,
 };
