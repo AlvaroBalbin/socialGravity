@@ -5,17 +5,17 @@ import { ArrowRight } from 'lucide-react';
 
 // Mini orbit visual for hero
 function HeroOrbit() {
-  // Dots with orbital properties: distance from center, initial angle, size class, orbit duration
+  // Dots with orbital properties: distance from center, initial angle, size class, orbit duration (slowed 50%)
   const dots = [
-    { distance: 28, angle: 0, sizeClass: 'large', duration: 14 },
-    { distance: 38, angle: 40, sizeClass: 'medium', duration: 16 },
-    { distance: 22, angle: 85, sizeClass: 'large', duration: 13 },
-    { distance: 42, angle: 130, sizeClass: 'small', duration: 18 },
-    { distance: 32, angle: 175, sizeClass: 'medium', duration: 15 },
-    { distance: 45, angle: 220, sizeClass: 'small', duration: 19 },
-    { distance: 25, angle: 265, sizeClass: 'large', duration: 12.5 },
-    { distance: 40, angle: 310, sizeClass: 'medium', duration: 17 },
-    { distance: 35, angle: 355, sizeClass: 'small', duration: 16.5 },
+    { distance: 28, angle: 0, sizeClass: 'large', duration: 28 },
+    { distance: 38, angle: 40, sizeClass: 'medium', duration: 32 },
+    { distance: 22, angle: 85, sizeClass: 'large', duration: 26 },
+    { distance: 42, angle: 130, sizeClass: 'small', duration: 36 },
+    { distance: 32, angle: 175, sizeClass: 'medium', duration: 30 },
+    { distance: 45, angle: 220, sizeClass: 'small', duration: 38 },
+    { distance: 25, angle: 265, sizeClass: 'large', duration: 25 },
+    { distance: 40, angle: 310, sizeClass: 'medium', duration: 34 },
+    { distance: 35, angle: 355, sizeClass: 'small', duration: 33 },
   ];
 
   // Size classes (40-60% larger than before)
@@ -32,7 +32,7 @@ function HeroOrbit() {
   };
 
   return (
-    <div className="relative w-full max-w-[650px] aspect-[1.6/1] mx-auto">
+    <div className="relative w-full max-w-[550px] aspect-[1.8/1] mx-auto">
       {/* Soft ambient glow */}
       <div 
         className="absolute inset-0 pointer-events-none"
@@ -130,7 +130,7 @@ function HeroOrbit() {
 
 export default function HeroSection() {
   return (
-    <section className="min-h-[90vh] flex flex-col items-center justify-center px-6 py-20">
+    <section className="min-h-[80vh] flex flex-col items-center justify-center px-6 py-16">
       <div className="max-w-4xl mx-auto text-center">
         {/* Headline */}
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 tracking-tight mb-6">
@@ -160,7 +160,10 @@ export default function HeroSection() {
           </a>
         </div>
         
-        {/* Hero Visual */}
+      </div>
+      
+      {/* Hero Visual - positioned between hero text and next section */}
+      <div className="mt-8">
         <HeroOrbit />
       </div>
     </section>
