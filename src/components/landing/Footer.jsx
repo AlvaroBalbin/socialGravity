@@ -9,7 +9,7 @@ const links = [
 
 export default function Footer() {
   return (
-    <footer className="py-12 px-6 border-t border-gray-100">
+    <footer id="footer" className="py-12 px-6 border-t border-gray-100">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         {/* Logo/Name */}
         <span className="text-sm font-medium text-gray-800">Social Gravity</span>
