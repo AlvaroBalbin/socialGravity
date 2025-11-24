@@ -69,7 +69,7 @@ export default function InsightPreviewSection() {
   const [cardsRef, cardsInView] = useInView();
 
   return (
-    <section className="py-20 px-6 bg-[#FAFAFA]">
+    <section id="intelligence" className="py-20 px-6 bg-[#FAFAFA]">
       <div className="max-w-5xl mx-auto">
         <h2 
           ref={headingRef}

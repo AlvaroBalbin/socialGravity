@@ -39,22 +39,28 @@ export default function StickyHeader() {
         {/* Navigation */}
         <nav className="hidden md:flex items-center gap-8">
           <a 
-            href="#what-it-does" 
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
-          >
-            How It Works
-          </a>
-          <a 
-            href="#" 
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
-          >
-            Pricing
-          </a>
-          <a 
-            href="#" 
+            href="#resonance" 
             className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
           >
             About
+          </a>
+          <a 
+            href="#intelligence" 
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+          >
+            Intelligence
+          </a>
+          <a 
+            href="#use-cases" 
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+          >
+            Use Cases
+          </a>
+          <a 
+            href="#faq" 
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-light"
+          >
+            FAQ
           </a>
         </nav>
 

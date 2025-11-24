@@ -33,7 +33,7 @@ export default function WhyItMattersSection() {
   const [benefitsRef, benefitsInView] = useInView();
 
   return (
-    <section className="py-28 px-6 bg-white">
+    <section id="use-cases" className="py-28 px-6 bg-white">
       <div className="max-w-3xl mx-auto text-center">
         {/* Headline */}
         <h2 
