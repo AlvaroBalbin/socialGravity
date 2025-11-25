@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 import { base44 } from '@/api/base44Client';
 
 export default function ProfileHeader() {
@@ -14,16 +16,13 @@ export default function ProfileHeader() {
       }}
     >
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo and Label */}
-        <div className="flex items-center gap-3">
-          {/* Simple orbit icon */}
-          <div className="w-8 h-8 relative">
-            <div className="absolute inset-0 rounded-full border border-black" />
-            <div className="absolute inset-[30%] rounded-full border border-black/40" />
-            <div className="absolute top-1/2 left-[15%] w-1.5 h-1.5 bg-black rounded-full -translate-y-1/2" />
-          </div>
-          <span className="text-sm font-medium text-gray-900 tracking-tight">Profile</span>
-        </div>
+        {/* Logo */}
+        <Link 
+          to={createPageUrl('Landing')}
+          className="text-lg font-medium text-gray-900 tracking-tight hover:text-gray-600 transition-colors"
+        >
+          Social Gravity
+        </Link>
 
         {/* Log Out Button */}
         <button
