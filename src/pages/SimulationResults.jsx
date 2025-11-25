@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import TopBar from '@/components/gravity/TopBar';
+import SimulationHeader from '@/components/gravity/SimulationHeader';
 import GravityOrbit from '@/components/gravity/GravityOrbit';
 import AnalyticsPanel from '@/components/gravity/AnalyticsPanel';
 import TopPersonasRow from '@/components/gravity/TopPersonasRow';
@@ -9,9 +9,18 @@ import { HelpCircle } from 'lucide-react';
 
 export default function SimulationResults() {
   const [selectedPersona, setSelectedPersona] = useState(null);
+  const [simulationTitle, setSimulationTitle] = useState('');
 
   const handlePersonaSelect = (persona) => {
     setSelectedPersona(persona);
+  };
+
+  const handleTitleChange = (newTitle) => {
+    setSimulationTitle(newTitle);
+  };
+
+  const handleSave = (data) => {
+    console.log('Simulation saved:', data);
   };
 
   return (
@@ -19,13 +28,16 @@ export default function SimulationResults() {
       {/* Logo */}
       <Link 
         to={createPageUrl('Landing')}
-        className="absolute top-5 right-5 text-lg font-medium text-gray-900 tracking-tight hover:text-gray-600 transition-colors z-10"
+        className="absolute top-5 right-5 text-lg font-medium text-gray-900 tracking-tight hover:text-gray-600 transition-colors z-50"
       >
         Social Gravity
       </Link>
 
-      {/* Top Bar */}
-      <TopBar />
+      {/* Simulation Header */}
+      <SimulationHeader 
+        onTitleChange={handleTitleChange}
+        onSave={handleSave}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex">
