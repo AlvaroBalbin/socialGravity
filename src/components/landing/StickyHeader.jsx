@@ -77,14 +77,14 @@ export default function StickyHeader() {
 
         {/* CTA */}
         <Link
-          to={createPageUrl('SimulationResults')}
+          to={createPageUrl('Profile')}
           className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-300"
           style={{
             padding: scrolled ? '8px 16px' : '10px 20px',
             fontSize: scrolled ? '13px' : '14px',
           }}
         >
-          Try It Free
+          My Account
         </Link>
       </div>
     </header>
