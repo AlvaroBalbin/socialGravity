@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Check } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { createPageUrl } from '@/utils';
 
 export default function SimulationHeader({ 
   simulationData,
@@ -23,6 +25,7 @@ export default function SimulationHeader({
   const [isInputsExpanded, setIsInputsExpanded] = useState(true);
   const [version, setVersion] = useState(1);
   const titleInputRef = useRef(null);
+  const navigate = useNavigate();
 
   // Get session data
   const sessionData = JSON.parse(sessionStorage.getItem('simulationData') || '{}');
@@ -94,6 +97,11 @@ export default function SimulationHeader({
     setIsSaving(false);
     setIsSaved(true);
     onSave?.(dataToSave);
+    
+    // Redirect to profile page
+    setTimeout(() => {
+      navigate(createPageUrl('Profile'));
+    }, 500);
   };
 
   return (
