@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
@@ -7,9 +7,21 @@ import ProfileHeader from '@/components/profile/ProfileHeader';
 import UserBlock from '@/components/profile/UserBlock';
 import SimulationCard from '@/components/profile/SimulationCard';
 import EmptyState from '@/components/profile/EmptyState';
+import SimulationModal from '@/components/simulation/SimulationModal';
 
 export default function Profile() {
   const [user, setUser] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSimulationComplete = (data) => {
+    setShowModal(false);
+    sessionStorage.setItem('simulationData', JSON.stringify({
+      audienceDescription: data.audienceDescription,
+      videoFileName: data.videoFile?.name,
+    }));
+    navigate(createPageUrl('SimulationResults'));
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -39,6 +51,11 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SimulationModal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)}
+        onComplete={handleSimulationComplete}
+      />
       <ProfileHeader />
 
       <main className="max-w-6xl mx-auto px-6 pb-16">
@@ -66,7 +83,7 @@ export default function Profile() {
               ))}
             </div>
           ) : simulations.length === 0 ? (
-            <EmptyState />
+            <EmptyState onRunSimulation={() => setShowModal(true)} />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {simulations.map((simulation, index) => (

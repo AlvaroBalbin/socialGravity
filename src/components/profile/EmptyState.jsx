@@ -1,8 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
 
-export default function EmptyState() {
+export default function EmptyState({ onRunSimulation }) {
   return (
     <div 
       className="flex flex-col items-center justify-center py-20"
@@ -23,12 +21,12 @@ export default function EmptyState() {
         Run a simulation to start building your audience universe.
       </p>
 
-      <Link
-        to={createPageUrl('SimulationResults')}
+      <button
+        onClick={onRunSimulation}
         className="px-5 py-2.5 text-xs font-medium text-gray-900 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
       >
         Run Simulation
-      </Link>
+      </button>
 
       <style>{`
         @keyframes fadeIn {
