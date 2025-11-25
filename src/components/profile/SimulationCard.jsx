@@ -1,8 +1,15 @@
 import React from 'react';
 import { format } from 'date-fns';
+import { Trash2 } from 'lucide-react';
 import MiniOrbit from './MiniOrbit';
 
-export default function SimulationCard({ simulation, onClick, delay = 0 }) {
+export default function SimulationCard({ simulation, onClick, onDelete, delay = 0 }) {
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (window.confirm('Delete this simulation?')) {
+      onDelete?.(simulation.id);
+    }
+  };
   const createdDate = simulation?.created_date 
     ? format(new Date(simulation.created_date), 'MMM d, yyyy')
     : 'Unknown';
@@ -45,8 +52,16 @@ export default function SimulationCard({ simulation, onClick, delay = 0 }) {
           </div>
         </div>
 
-        {/* Mini Orbit */}
-        <MiniOrbit score={simulation.audience_fit_score} />
+        {/* Mini Orbit & Delete */}
+        <div className="flex items-center gap-3">
+          <MiniOrbit score={simulation.audience_fit_score} />
+          <button
+            onClick={handleDelete}
+            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <style>{`
