@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import UserBlock from '@/components/profile/UserBlock';
 import SimulationCard from '@/components/profile/SimulationCard';
@@ -13,6 +13,7 @@ export default function Profile() {
   const [user, setUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleSimulationComplete = (data) => {
     setShowModal(false);
@@ -47,6 +48,11 @@ export default function Profile() {
   const handleSimulationClick = (simulation) => {
     // Navigate to simulation detail view with ID
     window.location.href = createPageUrl('SimulationDetail') + `?id=${simulation.id}`;
+  };
+
+  const handleDeleteSimulation = async (id) => {
+    await base44.entities.Simulation.delete(id);
+    queryClient.invalidateQueries({ queryKey: ['simulations'] });
   };
 
   return (
@@ -91,6 +97,7 @@ export default function Profile() {
                   key={simulation.id}
                   simulation={simulation}
                   onClick={() => handleSimulationClick(simulation)}
+                  onDelete={handleDeleteSimulation}
                   delay={index * 0.05}
                 />
               ))}
