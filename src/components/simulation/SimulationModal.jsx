@@ -113,7 +113,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
     >
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-white/40 backdrop-blur-md"
+        className="absolute inset-0 bg-white/20 backdrop-blur-sm"
         onClick={onClose}
       />
 
