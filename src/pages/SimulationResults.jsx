@@ -25,14 +25,6 @@ export default function SimulationResults() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Logo */}
-      <Link 
-        to={createPageUrl('Landing')}
-        className="absolute top-5 right-5 text-lg font-medium text-gray-900 tracking-tight hover:text-gray-600 transition-colors z-50"
-      >
-        Social Gravity
-      </Link>
-
       {/* Simulation Header */}
       <SimulationHeader 
         onTitleChange={handleTitleChange}

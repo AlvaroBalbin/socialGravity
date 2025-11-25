@@ -148,51 +148,6 @@ export default function SimulationHeader({
         </button>
       </div>
 
-      {/* Section B: Collapsible Input Overview */}
-      <div 
-        className={`overflow-hidden transition-all duration-300 ease-out ${
-          isInputsExpanded ? 'max-h-24' : 'max-h-10'
-        }`}
-      >
-        <div className="px-6 pb-4">
-          {/* Collapse toggle */}
-          <button
-            onClick={() => setIsInputsExpanded(!isInputsExpanded)}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-2"
-          >
-            <span>Inputs</span>
-            <ChevronDown 
-              className={`w-3 h-3 transition-transform duration-200 ${
-                isInputsExpanded ? 'rotate-180' : ''
-              }`} 
-            />
-          </button>
-
-          {/* Pills */}
-          <div 
-            className={`flex flex-wrap gap-2 transition-opacity duration-200 ${
-              isInputsExpanded ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <span className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-xs text-gray-600">
-              <span className="text-gray-400">Audience:</span>{' '}
-              <span className="font-medium text-gray-700">
-                {audienceDescription.length > 40 
-                  ? audienceDescription.substring(0, 40) + '...' 
-                  : audienceDescription}
-              </span>
-            </span>
-            <span className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-xs text-gray-600">
-              <span className="text-gray-400">Video:</span>{' '}
-              <span className="font-medium text-gray-700">12s</span>
-            </span>
-            <span className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-xs text-gray-600">
-              <span className="text-gray-400">Version:</span>{' '}
-              <span className="font-medium text-gray-700">v{version}</span>
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
