@@ -73,7 +73,7 @@ export default function SimulationHeader({
       top_persona: 'Creative Director',
       video_url: videoFileName,
       personas_data: [], // Would be populated with actual data
-      retention_data: [95, 88, 80, 72, 65, 58, 52, 46, 40, 35],
+      retention_data: ['95', '88', '80', '72', '65', '58', '52', '46', '40', '35'],
       metrics: {
         audienceDescription,
         videoDuration: 12,
