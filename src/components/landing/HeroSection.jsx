@@ -1,7 +1,8 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { ArrowRight } from 'lucide-react';
+import SimulationModal from '@/components/simulation/SimulationModal';
 
 // Mini info card component
 function MiniInfoCard({ name, score, attention, style }) {
@@ -172,8 +173,26 @@ function HeroOrbit() {
 }
 
 export default function HeroSection() {
+  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSimulationComplete = (data) => {
+    setShowModal(false);
+    // Store data in sessionStorage for the results page
+    sessionStorage.setItem('simulationData', JSON.stringify({
+      audienceDescription: data.audienceDescription,
+      videoFileName: data.videoFile?.name,
+    }));
+    navigate(createPageUrl('SimulationResults'));
+  };
+
   return (
     <section className="min-h-[90vh] flex flex-col items-center justify-center px-6 pt-32 pb-20 bg-white">
+      <SimulationModal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)}
+        onComplete={handleSimulationComplete}
+      />
       <div className="max-w-4xl mx-auto text-center">
         {/* Headline */}
         <h1 
@@ -206,13 +225,13 @@ export default function HeroSection() {
             opacity: 0,
           }}
         >
-          <Link 
-            to={createPageUrl('SimulationResults')}
+          <button 
+            onClick={() => setShowModal(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-colors"
           >
             Try Simulation
             <ArrowRight className="w-4 h-4" />
-          </Link>
+          </button>
           <a 
             href="#what-it-does"
             className="text-sm text-gray-500 hover:text-gray-700 transition-colors"

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { ArrowRight } from 'lucide-react';
+import SimulationModal from '@/components/simulation/SimulationModal';
 
 function useInView() {
   const ref = useRef(null);
@@ -24,9 +25,25 @@ function useInView() {
 
 export default function CTASection() {
   const [sectionRef, isInView] = useInView();
+  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSimulationComplete = (data) => {
+    setShowModal(false);
+    sessionStorage.setItem('simulationData', JSON.stringify({
+      audienceDescription: data.audienceDescription,
+      videoFileName: data.videoFile?.name,
+    }));
+    navigate(createPageUrl('SimulationResults'));
+  };
 
   return (
     <section ref={sectionRef} className="py-28 px-6 bg-white">
+      <SimulationModal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)}
+        onComplete={handleSimulationComplete}
+      />
       <div className="max-w-2xl mx-auto text-center">
         {/* Headline */}
         <h2 
@@ -48,13 +65,13 @@ export default function CTASection() {
             transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s',
           }}
         >
-          <Link 
-            to={createPageUrl('SimulationResults')}
+          <button 
+            onClick={() => setShowModal(true)}
             className="inline-flex items-center gap-2 px-7 py-3.5 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-colors mb-5"
           >
             Start Simulation
             <ArrowRight className="w-4 h-4" />
-          </Link>
+          </button>
         </div>
         
         {/* Subtext */}
