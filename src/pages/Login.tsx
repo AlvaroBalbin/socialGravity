@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "../supabaseClient";
 
 export default function Login() {
-  const { signInWithEmail, isAuthenticated } = useAuth();
+  const { signInWithEmail, isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -12,17 +13,51 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Where should Supabase send the user back to after clicking the magic link?
-  // If we came from "Save Simulation" this will be the full simulationresults URL.
-  const redirectTo =
-    location.state?.redirectTo || window.location.origin;
+  // Read query params: ?redirect=...&claim_simulation=...
+  const params = new URLSearchParams(location.search);
+  const redirectParam = params.get("redirect");           // encoded string or null
+  const claimSimulationId = params.get("claim_simulation"); // simulation UUID or null
 
-  // If already logged in, send them to profile
+  // Magic link should bring the user back to THIS URL (with the params)
+  const magicLinkRedirectTo = window.location.href;
+
+  // After auth: claim the simulation (if any) and redirect
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/profile");
-    }
-  }, [isAuthenticated, navigate]);
+    if (!isAuthenticated || !user) return;
+
+    const claimAndRedirect = async () => {
+      try {
+        if (claimSimulationId) {
+          const { error } = await supabase
+            .from("simulations")
+            .update({ user_id: user.id })
+            .eq("id", claimSimulationId)
+            .is("user_id", null); // only claim if not owned yet
+
+          if (error) {
+            console.error("Failed to claim simulation:", error);
+          } else {
+            console.log(
+              "✅ Claimed simulation",
+              claimSimulationId,
+              "for user",
+              user.id
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Error while claiming simulation:", err);
+      }
+
+      const target = redirectParam
+        ? decodeURIComponent(redirectParam)
+        : "/profile";
+
+      navigate(target, { replace: true });
+    };
+
+    claimAndRedirect();
+  }, [isAuthenticated, user, claimSimulationId, redirectParam, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,8 +65,8 @@ export default function Login() {
     setStatus(null);
 
     try {
-      // pass redirectTo so the magic link returns to the right place
-      await signInWithEmail(email, redirectTo);
+      // Send magic link that returns to THIS /login URL (with redirect + claim_simulation)
+      await signInWithEmail(email, magicLinkRedirectTo);
       setStatus("Check your email for a login link.");
     } catch (err) {
       console.error(err);
@@ -96,9 +131,7 @@ export default function Login() {
           {loading ? "Sending…" : "Send magic link"}
         </button>
         {status && (
-          <p style={{ marginTop: 12, fontSize: 13 }}>
-            {status}
-          </p>
+          <p style={{ marginTop: 12, fontSize: 13 }}>{status}</p>
         )}
       </form>
     </div>

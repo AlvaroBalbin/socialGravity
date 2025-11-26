@@ -1,30 +1,34 @@
 // src/pages/SimulationResults.jsx
 
-import React, { useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { HelpCircle } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { HelpCircle } from "lucide-react";
 
-import { createPageUrl } from '@/utils';
-import { callEdge } from '@/lib/api';
-import { mapSimulationToUI } from '@/lib/mappers';
+import { createPageUrl } from "@/utils";
+import { callEdge } from "@/lib/api";
+import { mapSimulationToUI } from "@/lib/mappers";
 
-import SimulationHeader from '@/components/gravity/SimulationHeader';
-import GravityOrbit from '@/components/gravity/GravityOrbit';
-import TopPersonasRow from '@/components/gravity/TopPersonasRow';
-import AnalyticsPanel from '@/components/gravity/AnalyticsPanel';
+import SimulationHeader from "@/components/gravity/SimulationHeader";
+import GravityOrbit from "@/components/gravity/GravityOrbit";
+import TopPersonasRow from "@/components/gravity/TopPersonasRow";
+import AnalyticsPanel from "@/components/gravity/AnalyticsPanel";
+
+import { useAuth } from "@/lib/AuthContext";
 
 export default function SimulationResults() {
   const [selectedPersona, setSelectedPersona] = useState(null);
-  const [simulationTitle, setSimulationTitle] = useState('');
+  const [simulationTitle, setSimulationTitle] = useState("");
 
   // width of the right-hand analytics panel (draggable)
   const [sidebarWidth, setSidebarWidth] = useState(420);
   const minSidebarWidth = 320;
   const maxSidebarWidth = 720;
 
+  const { isAuthenticated } = useAuth();
+
   // Read simulation ID from query params
   const urlParams = new URLSearchParams(window.location.search);
-  const simulationId = urlParams.get('id');
+  const simulationId = urlParams.get("id");
 
   // Load Supabase simulation via edge function
   const {
@@ -32,11 +36,39 @@ export default function SimulationResults() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['simulation_results', simulationId],
-    queryFn: () => callEdge('get_simulation', { simulation_id: simulationId }),
+    queryKey: ["simulation_results", simulationId],
+    queryFn: () => callEdge("get_simulation", { simulation_id: simulationId }),
     enabled: !!simulationId,
     select: mapSimulationToUI,
   });
+
+  // Save button logic
+  const handleSave = () => {
+    console.log(
+      "[SimulationResults] Save clicked. isAuthenticated:",
+      isAuthenticated,
+      "simulationId:",
+      simulationId
+    );
+
+    if (!simulationId) {
+      console.error("No simulationId found when trying to save");
+      return;
+    }
+
+    // Guest → send to /login with info about this simulation
+    if (!isAuthenticated) {
+      // after login, we want to land on /profile (where the sim will appear)
+      const redirectTarget = "/profile";
+      const redirectParam = encodeURIComponent(redirectTarget);
+
+      window.location.href = `/login?redirect=${redirectParam}&claim_simulation=${simulationId}`;
+      return;
+    }
+
+    // Already logged in → in future you might do extra save logic here
+    console.log("User already authenticated; simulation should be claimed.");
+  };
 
   const handlePersonaSelect = (persona) => {
     setSelectedPersona(persona);
@@ -44,10 +76,6 @@ export default function SimulationResults() {
 
   const handleTitleChange = (newTitle) => {
     setSimulationTitle(newTitle);
-  };
-
-  const handleSave = (data) => {
-    console.log('Simulation saved:', data);
   };
 
   // Drag-to-resize handler for analytics panel
@@ -69,12 +97,12 @@ export default function SimulationResults() {
       };
 
       const handleMouseUp = () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
       };
 
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
     },
     [sidebarWidth]
   );
@@ -93,8 +121,10 @@ export default function SimulationResults() {
     return (
       <div className="h-screen bg-white flex flex-col items-center justify-center">
         <p className="text-sm text-gray-500 mb-4">Simulation not found</p>
-
-        <a href={createPageUrl('Profile')} className="text-sm text-gray-900 underline">
+        <a
+          href={createPageUrl("Profile")}
+          className="text-sm text-gray-900 underline"
+        >
           Back to Profile
         </a>
       </div>
@@ -150,7 +180,10 @@ export default function SimulationResults() {
           style={{ width: sidebarWidth }}
         >
           <div className="h-full p-5 overflow-y-auto">
-            <AnalyticsPanel simulation={simulation} selectedPersona={selectedPersona} />
+            <AnalyticsPanel
+              simulation={simulation}
+              selectedPersona={selectedPersona}
+            />
           </div>
         </div>
       </div>

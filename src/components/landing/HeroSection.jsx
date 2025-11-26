@@ -172,67 +172,58 @@ function HeroOrbit() {
   );
 }
 
-export default function HeroSection() {
-  const [showModal, setShowModal] = useState(false);
-  const navigate = useNavigate();
-
-  const handleSimulationComplete = (data) => {
-    setShowModal(false);
-    // Store data in sessionStorage for the results page
-    sessionStorage.setItem('simulationData', JSON.stringify({
-      audienceDescription: data.audienceDescription,
-      videoFileName: data.videoFile?.name,
-    }));
-    navigate(createPageUrl('SimulationResults'));
+export default function HeroSection({ onRunSimulation }) {
+  const handleClick = () => {
+    if (onRunSimulation) onRunSimulation();
   };
 
   return (
     <section className="min-h-[90vh] flex flex-col items-center justify-center px-6 pt-32 pb-20 bg-white">
-      <SimulationModal 
-        isOpen={showModal} 
-        onClose={() => setShowModal(false)}
-        onComplete={handleSimulationComplete}
-      />
       <div className="max-w-4xl mx-auto text-center">
         {/* Headline */}
-        <h1 
+        <h1
           className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 tracking-tight mb-6"
           style={{
-            animation: 'heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            animation: "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards",
             opacity: 0,
           }}
         >
-          Predict Engagement.<br />
+          Predict Engagement.
+          <br />
           <span className="text-gray-400">Before you post.</span>
         </h1>
-        
+
         {/* Sub-headline */}
-        <p 
+        <p
           className="text-base md:text-lg text-gray-500 font-light max-w-2xl mx-auto mb-10 leading-relaxed"
           style={{
-            animation: 'heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards',
+            animation:
+              "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards",
             opacity: 0,
           }}
         >
-          AI simulates how different personas react to your content — so creators can predict performance with clarity, not guesswork.
+          AI simulates how different personas react to your content — so creators
+          can predict performance with clarity, not guesswork.
         </p>
-        
+
         {/* CTAs */}
-        <div 
+        <div
           className="flex items-center justify-center gap-6 mb-16"
           style={{
-            animation: 'heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s forwards',
+            animation:
+              "heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s forwards",
             opacity: 0,
           }}
         >
-          <button 
-            onClick={() => setShowModal(true)}
+          <button
+            onClick={handleClick}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-colors"
           >
             Try Simulation
             <ArrowRight className="w-4 h-4" />
           </button>
-          <a 
+
+          <a
             href="#what-it-does"
             className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
@@ -252,7 +243,6 @@ export default function HeroSection() {
             }
           }
         `}</style>
-
       </div>
     </section>
   );

@@ -59,14 +59,7 @@ export default function SimulationHeader({
   const handleSave = async () => {
     if (isSaved || isSaving) return;
 
-    // Must be logged in to save
-    if (!isAuthenticated) {
-      // send them to login page
-      navigate("/login");
-      return;
-    }
-
-    // We need a simulation ID from props
+    // Figure out which simulation we’re talking about
     const simulationId =
       simulationData?.id || simulationData?.simulation_id;
 
@@ -79,10 +72,21 @@ export default function SimulationHeader({
       return;
     }
 
+    // 🔒 Not logged in → send to login with redirect + claim_simulation
+    if (!isAuthenticated) {
+      const redirectTarget = createPageUrl("Profile"); // or keep as '/profile'
+      const redirectParam = encodeURIComponent(redirectTarget);
+
+      navigate(
+        `/login?redirect=${redirectParam}&claim_simulation=${simulationId}`
+      );
+      return;
+    }
+
+    // ✅ Logged in → attach simulation to this user
     setIsSaving(true);
 
     try {
-      // Attach this simulation row to the current Supabase user
       const { error } = await supabase
         .from("simulations")
         .update({
