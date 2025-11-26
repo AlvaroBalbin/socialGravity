@@ -1,57 +1,55 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, UserPlus, Clock, TrendingUp } from 'lucide-react';
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  Bookmark,
+  UserPlus,
+  Clock,
+  TrendingUp,
+} from 'lucide-react';
 
-const defaultData = {
-  overallScore: 82,
-  like: 78,
-  comment: 34,
-  share: 45,
-  save: 61,
-  follow: 23,
-  swipeProb: 18,
-  predictedWatchTime: '8.4s',
-  predictedWatchPercent: 70,
-  retentionCurve: [95, 88, 80, 72, 65, 58, 52, 46, 40, 35],
-  qualitativeInsights: [
-    'Personas with aesthetic or cozy vibes were strongly pulled inward. High resonance with soft, wholesome content.',
-    'Fast-paced personas dropped early due to slower cuts. Pacing mismatch detected in first 3 seconds.',
-    'High cultural fit with NYC Gen Z cluster; low fit with chaotic-humour personas.',
-    'Opening hook needs more immediate visual impact. Current 1.2s delay causes early drop-off.',
-    'Color palette strongly resonates with target demographic. Consider maintaining consistency.',
-    'Suggestion: Tighten the hook to <0.7s for maximum pull and reduce swipe probability by ~40%.'
-  ]
-};
-
-function RetentionCurve({ retentionCurve, videoDuration = 12 }) {
+// RetentionCurve now expects values 0–1 (from generalFeedback.retentionCurve)
+function RetentionCurve({ retentionCurve = [], videoDuration = 12 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
+  if (!retentionCurve.length) return null;
+
   const segmentDuration = videoDuration / retentionCurve.length;
 
   return (
     <div>
       <span className="text-xs text-gray-600 block mb-3">Retention Curve</span>
       <div className="flex items-end gap-1 h-8 relative">
-        {retentionCurve.map((value, index) => {
+        {retentionCurve.map((rawValue, index) => {
+          const value = Math.max(0, Math.min(rawValue ?? 0, 1)); // clamp 0–1
+          const valuePct = Math.round(value * 100);
+
           const startTime = (index * segmentDuration).toFixed(1);
           const endTime = ((index + 1) * segmentDuration).toFixed(1);
-          
+
           return (
             <div
               key={index}
               className="flex-1 bg-gray-700 rounded-sm transition-all duration-300 cursor-pointer hover:opacity-100 relative"
-              style={{ 
-                height: `${(value / 100) * 100}%`,
-                opacity: hoveredIndex === index ? 1 : 0.4 + (value / 100) * 0.6
+              style={{
+                height: `${valuePct}%`,
+                opacity:
+                  hoveredIndex === index ? 1 : 0.4 + (valuePct / 100) * 0.6,
               }}
               onMouseEnter={() => setHoveredIndex(index)}
               onMouseLeave={() => setHoveredIndex(null)}
             >
               {hoveredIndex === index && (
-                <div 
+                <div
                   className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-white border border-gray-200 rounded-lg shadow-md whitespace-nowrap z-10 pointer-events-none"
                   style={{ animation: 'fadeIn 0.15s ease-out' }}
                 >
-                  <p className="text-[10px] text-gray-700 font-medium">{startTime}s – {endTime}s</p>
-                  <p className="text-[10px] text-gray-400">{value}% retained</p>
+                  <p className="text-[10px] text-gray-700 font-medium">
+                    {startTime}s – {endTime}s
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    {valuePct}% retained
+                  </p>
                 </div>
               )}
             </div>
@@ -68,32 +66,150 @@ function RetentionCurve({ retentionCurve, videoDuration = 12 }) {
   );
 }
 
-export default function AnalyticsPanel({ selectedPersona }) {
+/**
+ * Props:
+ *   - simulation: UISimulation (from mappers.ts)
+ *   - selectedPersona: UIPersonaSummary | null
+ */
+export default function AnalyticsPanel({ simulation, selectedPersona }) {
+  if (!simulation) return null;
+
+  const general = simulation.generalFeedback || {};
+  const metrics = simulation.metrics || [];
+
+  // Find persona metrics (probabilities, watch time, qualitative feedback…)
+  const personaMetrics =
+    selectedPersona &&
+    metrics.find((m) => m.personaId === selectedPersona.id);
+
+  const isPersonaView = !!(selectedPersona && personaMetrics);
+
+  const pct = (v) =>
+    v == null || Number.isNaN(v) ? null : Math.round(v * 100);
+
+  const overallScore = simulation.audienceFitScore ?? 0;
+
+  // Engagement data source: persona vs general
+  const engagementSource = isPersonaView ? personaMetrics : general;
+
   const engagementData = [
-    { label: 'Like', value: selectedPersona?.like ?? defaultData.like, icon: Heart },
-    { label: 'Comment', value: selectedPersona?.comment ?? defaultData.comment, icon: MessageCircle },
-    { label: 'Share', value: selectedPersona?.share ?? defaultData.share, icon: Share2 },
-    { label: 'Save', value: selectedPersona?.save ?? defaultData.save, icon: Bookmark },
-    { label: 'Follow', value: selectedPersona?.follow ?? defaultData.follow, icon: UserPlus },
+    {
+      label: 'Like',
+      value: pct(
+        isPersonaView
+          ? engagementSource.likeProbability
+          : engagementSource.avgLikeProbability
+      ),
+      icon: Heart,
+    },
+    {
+      label: 'Comment',
+      value: pct(
+        isPersonaView
+          ? engagementSource.commentProbability
+          : engagementSource.avgCommentProbability
+      ),
+      icon: MessageCircle,
+    },
+    {
+      label: 'Share',
+      value: pct(
+        isPersonaView
+          ? engagementSource.shareProbability
+          : engagementSource.avgShareProbability
+      ),
+      icon: Share2,
+    },
+    {
+      label: 'Save',
+      value: pct(
+        isPersonaView
+          ? engagementSource.saveProbability
+          : engagementSource.avgSaveProbability
+      ),
+      icon: Bookmark,
+    },
+    {
+      label: 'Follow',
+      value: pct(
+        isPersonaView
+          ? engagementSource.followProbability
+          : engagementSource.avgFollowProbability
+      ),
+      icon: UserPlus,
+    },
   ];
 
-  const swipeProb = selectedPersona?.swipeProb ?? defaultData.swipeProb;
-  const predictedWatchTime = selectedPersona?.predictedWatchTime ?? defaultData.predictedWatchTime;
-  const predictedWatchPercent = selectedPersona?.watchTimePercent ?? defaultData.predictedWatchPercent;
-  const retentionCurve = selectedPersona?.retentionCurve ?? defaultData.retentionCurve;
-  const qualitativeInsights = selectedPersona?.qualitativeInsights ?? defaultData.qualitativeInsights;
-  
+  const swipeProb = pct(
+    isPersonaView
+      ? personaMetrics.swipeProbability
+      : general.avgSwipeProbability
+  );
+
+  const predictedWatchTimeSeconds = isPersonaView
+    ? personaMetrics.watchTimeSeconds
+    : general.avgWatchTimeSeconds;
+
+  const predictedWatchTime =
+    predictedWatchTimeSeconds == null
+      ? '–'
+      : `${predictedWatchTimeSeconds.toFixed(1)}s`;
+
+  // Very rough “percentage of video watched”
+  const videoDuration = simulation.videoDurationSeconds || 0;
+  const watchTimePercent =
+    videoDuration && predictedWatchTimeSeconds != null
+      ? Math.round(
+          Math.min(predictedWatchTimeSeconds / videoDuration, 1) * 100
+        )
+      : null;
+
+  const retentionCurve = general.retentionCurve || [];
+
+  // Qualitative:
+  const storytellingInsights = isPersonaView
+    ? personaMetrics.qualitativeFeedback || []
+    : general.storytellingInsights || [];
+
+  const editingInsights = general.editingInsights || [];
+
+  const personaName =
+    selectedPersona?.displayName ||
+    selectedPersona?.label ||
+    selectedPersona?.shortLabel ||
+    'Selected Persona';
+
+  const personaId = selectedPersona?.id || selectedPersona?.personaId;
+
+  const personaTags = selectedPersona?.tags || [];
+
+  const personaMatch = pct(personaMetrics?.alignmentScore);
+
+  const personaWatchTimeStr =
+    personaMetrics?.watchTimeSeconds == null
+      ? '–'
+      : `${personaMetrics.watchTimeSeconds.toFixed(1)}s`;
+
+  const personaWatchPercent =
+    videoDuration && personaMetrics?.watchTimeSeconds != null
+      ? Math.round(
+          Math.min(personaMetrics.watchTimeSeconds / videoDuration, 1) * 100
+        )
+      : null;
+
   return (
     <div className="w-80 flex-shrink-0 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)] pr-2">
-      
       {/* TOP CARD - Dynamic: Overall Audience Fit / Selected Persona */}
-      {!selectedPersona ? (
-        /* DEFAULT STATE: Overall Audience Fit */
+      {!isPersonaView ? (
+        // DEFAULT STATE: Overall Audience Fit
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <div className="flex flex-col items-center">
             {/* Circular Score */}
             <div className="relative w-28 h-28 mb-4">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+              <svg
+                className="w-full h-full transform -rotate-90"
+                viewBox="0 0 100 100"
+              >
                 <circle
                   cx="50"
                   cy="50"
@@ -110,68 +226,90 @@ export default function AnalyticsPanel({ selectedPersona }) {
                   stroke="#262626"
                   strokeWidth="6"
                   strokeLinecap="round"
-                  strokeDasharray={`${defaultData.overallScore * 2.64} 264`}
+                  strokeDasharray={`${overallScore * 2.64} 264`}
                   className="transition-all duration-700 ease-out"
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-semibold text-gray-900">{defaultData.overallScore}</span>
-                <span className="text-[10px] text-gray-400 font-medium">/100</span>
+                <span className="text-3xl font-semibold text-gray-900">
+                  {overallScore}
+                </span>
+                <span className="text-[10px] text-gray-400 font-medium">
+                  /100
+                </span>
               </div>
             </div>
             <p className="text-sm text-gray-500">Overall Audience Fit</p>
           </div>
         </div>
       ) : (
-        /* SELECTED STATE: Selected Persona Card */
+        // SELECTED STATE: Selected Persona Card
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           {/* Header */}
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium mb-2">Selected Persona</p>
-          <h2 className="text-lg font-semibold text-gray-900 mb-0.5">{selectedPersona.name}</h2>
-          <p className="text-xs text-gray-400 mb-4">{selectedPersona.personaId}</p>
-          
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium mb-2">
+            Selected Persona
+          </p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-0.5">
+            {personaName}
+          </h2>
+          {personaId && (
+            <p className="text-xs text-gray-400 mb-4">{personaId}</p>
+          )}
+
           {/* Tags */}
-          <div className="flex flex-wrap gap-2 mb-5">
-            {selectedPersona.tags.map((tag, index) => (
-              <span 
-                key={index}
-                className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-700 font-medium"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-          
+          {personaTags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-5">
+              {personaTags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-700 font-medium"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Divider */}
           <div className="h-px bg-gray-100 mb-5" />
-          
+
           {/* Overall Match */}
           <div className="bg-gray-50 rounded-xl p-4 mb-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-700 font-medium">Overall Match</span>
+              <span className="text-sm text-gray-700 font-medium">
+                Overall Match
+              </span>
               <div className="flex items-center gap-1">
                 <TrendingUp className="w-3.5 h-3.5 text-gray-500" />
-                <span className="text-sm font-semibold text-gray-900">{selectedPersona.engagement}%</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {personaMatch != null ? `${personaMatch}%` : '–'}
+                </span>
               </div>
             </div>
             <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${selectedPersona.engagement}%` }}
+                style={{ width: `${personaMatch ?? 0}%` }}
               />
             </div>
           </div>
-          
+
           {/* Watch Time */}
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
-                <span className="text-sm text-gray-700 font-medium">Watch Time</span>
+                <span className="text-sm text-gray-700 font-medium">
+                  Watch Time
+                </span>
               </div>
               <div className="text-right">
-                <span className="text-sm font-semibold text-gray-900">{selectedPersona.watchTime}</span>
-                <p className="text-[10px] text-gray-400">{selectedPersona.watchTimePercent}%</p>
+                <span className="text-sm font-semibold text-gray-900">
+                  {personaWatchTimeStr}
+                </span>
+                <p className="text-[10px] text-gray-400">
+                  {personaWatchPercent != null ? `${personaWatchPercent}%` : ''}
+                </p>
               </div>
             </div>
           </div>
@@ -181,25 +319,31 @@ export default function AnalyticsPanel({ selectedPersona }) {
       {/* ENGAGEMENT PROBABILITIES */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-gray-900 mb-5">
-          {selectedPersona ? 'Engagement Breakdown' : 'Engagement Probabilities'}
+          {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
         </h3>
-        
+
         <div className="space-y-4">
           {engagementData.map((item) => {
             const Icon = item.icon;
+            const value = item.value ?? 0;
             return (
               <div key={item.label} className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Icon className="w-3.5 h-3.5 text-gray-400" strokeWidth={1.5} />
+                    <Icon
+                      className="w-3.5 h-3.5 text-gray-400"
+                      strokeWidth={1.5}
+                    />
                     <span className="text-xs text-gray-600">{item.label}</span>
                   </div>
-                  <span className="text-xs font-semibold text-gray-900 tabular-nums">{item.value}%</span>
+                  <span className="text-xs font-semibold text-gray-900 tabular-nums">
+                    {item.value != null ? `${item.value}%` : '–'}
+                  </span>
                 </div>
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${item.value}%` }}
+                    style={{ width: `${value}%` }}
                   />
                 </div>
               </div>
@@ -210,51 +354,97 @@ export default function AnalyticsPanel({ selectedPersona }) {
 
       {/* ATTENTION METRICS */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-900 mb-5">Attention Metrics</h3>
-        
+        <h3 className="text-sm font-semibold text-gray-900 mb-5">
+          Attention Metrics
+        </h3>
+
         {/* Swipe Probability */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-600">Swipe Probability</span>
-            <span className="text-xs font-semibold text-gray-900 tabular-nums">{swipeProb}%</span>
+            <span className="text-xs font-semibold text-gray-900 tabular-nums">
+              {swipeProb != null ? `${swipeProb}%` : '–'}
+            </span>
           </div>
           <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${swipeProb}%` }}
+              style={{ width: `${swipeProb ?? 0}%` }}
             />
           </div>
         </div>
-        
+
         {/* Predicted Watch Time */}
         <div className="mb-5">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-600">Predicted Watch Time</span>
             <div className="text-right">
-              <span className="text-xs font-semibold text-gray-900">{predictedWatchTime}</span>
-              <p className="text-[10px] text-gray-400">{predictedWatchPercent}%</p>
+              <span className="text-xs font-semibold text-gray-900">
+                {predictedWatchTime}
+              </span>
+              <p className="text-[10px] text-gray-400">
+                {watchTimePercent != null ? `${watchTimePercent}%` : ''}
+              </p>
             </div>
           </div>
         </div>
-        
+
         {/* Retention Curve */}
-        <RetentionCurve retentionCurve={retentionCurve} videoDuration={12} />
+        <RetentionCurve
+          retentionCurve={retentionCurve}
+          videoDuration={videoDuration || 12}
+        />
       </div>
 
       {/* QUALITATIVE INSIGHTS */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Qualitative Insights</h3>
-        
-        <div className="space-y-4">
-          {qualitativeInsights.map((insight, index) => (
-            <div key={index} className="flex gap-3">
-              <span className="text-gray-300 mt-0.5">•</span>
-              <p className="text-xs text-gray-600 leading-relaxed">{insight}</p>
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-6">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">
+            Storytelling Insights
+          </h3>
+
+          {storytellingInsights.length ? (
+            <div className="space-y-4">
+              {storytellingInsights.map((insight, index) => (
+                <div key={index} className="flex gap-3">
+                  <span className="text-gray-300 mt-0.5">•</span>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    {insight}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <p className="text-xs text-gray-400">
+              Storytelling feedback will appear here once analysis completes.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">
+            Editing Style Insights
+          </h3>
+
+          {editingInsights.length ? (
+            <div className="space-y-4">
+              {editingInsights.map((insight, index) => (
+                <div key={index} className="flex gap-3">
+                  <span className="text-gray-300 mt-0.5">•</span>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    {insight}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              Visual and pacing insights will appear here once analysis
+              completes.
+            </p>
+          )}
         </div>
       </div>
-
     </div>
   );
 }

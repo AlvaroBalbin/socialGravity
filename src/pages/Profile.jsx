@@ -1,75 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { base44 } from '@/api/base44Client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+
 import ProfileHeader from '@/components/profile/ProfileHeader';
-import UserBlock from '@/components/profile/UserBlock';
-import SimulationCard from '@/components/profile/SimulationCard';
 import EmptyState from '@/components/profile/EmptyState';
 import SimulationModal from '@/components/simulation/SimulationModal';
 
 export default function Profile() {
-  const [user, setUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
+  // Called by SimulationModal when the Supabase pipeline finishes
   const handleSimulationComplete = (data) => {
     setShowModal(false);
-    sessionStorage.setItem('simulationData', JSON.stringify({
-      audienceDescription: data.audienceDescription,
-      videoFileName: data.videoFile?.name,
-    }));
-    navigate(createPageUrl('SimulationResults'));
-  };
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const userData = await base44.auth.me();
-        setUser(userData);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    const { simulationId } = data || {};
 
-  const { data: simulations = [], isLoading } = useQuery({
-    queryKey: ['simulations'],
-    queryFn: () => base44.entities.Simulation.filter(
-      { created_by: user?.email },
-      '-created_date'
-    ),
-    enabled: !!user?.email,
-  });
+    if (!simulationId) {
+      console.error('Simulation complete callback missing simulationId', data);
+      return;
+    }
 
-  const handleSimulationClick = (simulation) => {
-    // Navigate to simulation detail view with ID
-    window.location.href = createPageUrl('SimulationDetail') + `?id=${simulation.id}`;
-  };
-
-  const handleDeleteSimulation = async (id) => {
-    await base44.entities.Simulation.delete(id);
-    queryClient.invalidateQueries({ queryKey: ['simulations'] });
+    // Go straight to results view for that simulation
+    navigate(createPageUrl('SimulationResults') + `?id=${simulationId}`);
   };
 
   return (
     <div className="min-h-screen bg-white">
-      <SimulationModal 
-        isOpen={showModal} 
+      {/* Run Simulation Wizard */}
+      <SimulationModal
+        isOpen={showModal}
         onClose={() => setShowModal(false)}
         onComplete={handleSimulationComplete}
       />
+
+      {/* Top nav / user chip / etc. */}
       <ProfileHeader />
 
       <main className="max-w-6xl mx-auto px-6 pb-16">
-        {/* User Block */}
-        {user && <UserBlock user={user} />}
-
-        {/* Saved Simulations Section */}
-        <section 
+        {/* Saved Simulations Section (MVP: only shows empty state) */}
+        <section
           className="mt-4"
           style={{
             animation: 'sectionFadeIn 0.5s ease-out 0.2s both',
@@ -79,30 +49,12 @@ export default function Profile() {
             Saved Simulations
           </h2>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div 
-                  key={i} 
-                  className="h-32 bg-gray-50 rounded-2xl animate-pulse"
-                />
-              ))}
-            </div>
-          ) : simulations.length === 0 ? (
-            <EmptyState onRunSimulation={() => setShowModal(true)} />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {simulations.map((simulation, index) => (
-                <SimulationCard
-                  key={simulation.id}
-                  simulation={simulation}
-                  onClick={() => handleSimulationClick(simulation)}
-                  onDelete={handleDeleteSimulation}
-                  delay={index * 0.05}
-                />
-              ))}
-            </div>
-          )}
+          {/* 
+            MVP behaviour:
+            - No auth, no per-user history yet
+            - Show the EmptyState component with a button that opens the modal
+          */}
+          <EmptyState onRunSimulation={() => setShowModal(true)} />
         </section>
       </main>
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X } from 'lucide-react';
+import { callEdge } from '@/lib/api';
 
 export default function SimulationModal({ isOpen, onClose, onComplete }) {
   const [step, setStep] = useState(1);
@@ -8,6 +9,9 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState(null);
+
   const fileInputRef = useRef(null);
 
   // Disable body scroll when modal is open
@@ -30,6 +34,9 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
       setVideoFile(null);
       setFileName('');
       setError('');
+      setIsTransitioning(false);
+      setIsRunning(false);
+      setVideoDurationSeconds(null);
     }
   }, [isOpen]);
 
@@ -67,7 +74,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
     // Validate duration
     const video = document.createElement('video');
     video.preload = 'metadata';
-    
+
     video.onloadedmetadata = () => {
       window.URL.revokeObjectURL(video.src);
       if (video.duration > 60) {
@@ -77,6 +84,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
       setError('');
       setVideoFile(file);
       setFileName(file.name);
+      setVideoDurationSeconds(video.duration);
     };
 
     video.src = URL.createObjectURL(file);
@@ -91,34 +99,97 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
     }
   };
 
-  const handleBeginSimulation = () => {
+  const handleBeginSimulation = async () => {
+    if (!audienceDescription.trim()) {
+      setError('Please describe your target audience');
+      return;
+    }
     if (!videoFile) {
       setError('Please upload a video');
       return;
     }
-    onComplete({
-      audienceDescription,
-      videoFile,
-    });
+
+    setError('');
+    setIsRunning(true);
+
+    try {
+      // MVP: use your public sample video URL in Supabase Storage
+      // In the future, this should be replaced with an actual upload of `videoFile`.
+      const videoUrl =
+        'https://ootcwmipvdlyvjcvdtpo.supabase.co/storage/v1/object/public/videos/sample-5s.mp4';
+
+      const duration = videoDurationSeconds ?? 5.0;
+
+      // 1) Create simulation
+      const startRes = await callEdge('start_simulation', {
+        audience_prompt: audienceDescription,
+      });
+
+      const simulationId = startRes.simulation_id;
+      if (!simulationId) {
+        throw new Error('start_simulation did not return simulation_id');
+      }
+
+      // 2) Attach video URL + duration
+      await callEdge('set_video_url', {
+        simulation_id: simulationId,
+        video_url: videoUrl,
+        video_duration_seconds: duration,
+      });
+
+      // 3) Transcribe video
+      await callEdge('transcribe_video', {
+        simulation_id: simulationId,
+      });
+
+      // 4) Generate personas
+      await callEdge('generate_personas', {
+        simulation_id: simulationId,
+      });
+
+      // 5) Analyze simulation (persona reactions / metrics)
+      await callEdge('analyze_simulation', {
+        simulation_id: simulationId,
+      });
+
+      // 6) Start visual analysis (frames + visual summary)
+      await callEdge('start_visual_analysis', {
+        simulation_id: simulationId,
+      });
+
+      // 7) Notify parent that everything is done
+      onComplete({
+        simulationId,
+        audienceDescription,
+        videoFile,
+      });
+    } catch (err) {
+      console.error('Error running simulation pipeline', err);
+      setError(
+        err?.message || 'Something went wrong while running the simulation.'
+      );
+      setIsRunning(false);
+      return;
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
       style={{
         animation: 'modalFadeIn 0.5s ease-out',
       }}
     >
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-white/20 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={isRunning ? undefined : onClose}
       />
 
       {/* Card */}
-      <div 
+      <div
         className="relative bg-white rounded-[20px] border border-gray-100 p-8 w-full max-w-[500px] mx-4"
         style={{
           boxShadow: '0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
@@ -127,14 +198,15 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
       >
         {/* Close button */}
         <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors"
+          onClick={isRunning ? undefined : onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50"
+          disabled={isRunning}
         >
           <X className="w-4 h-4 text-gray-400" />
         </button>
 
         {/* Step Content */}
-        <div 
+        <div
           className="transition-opacity duration-200"
           style={{ opacity: isTransitioning ? 0 : 1 }}
         >
@@ -154,7 +226,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                 className="w-full h-32 p-4 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-gray-300 transition-colors"
               />
 
-              {error && (
+              {error && step === 1 && (
                 <p className="text-xs text-red-500 mt-2">{error}</p>
               )}
 
@@ -162,12 +234,14 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                 <button
                   onClick={onClose}
                   className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                  disabled={isRunning}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleNext}
                   className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
+                  disabled={isRunning}
                 >
                   Next
                 </button>
@@ -198,7 +272,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                   {fileName ? (
                     <p className="text-sm text-gray-900 font-medium">{fileName}</p>
                   ) : (
-                    <p className="text-sm text-gray-500">Drag & drop or click to upload</p>
+                    <p className="text-sm text-gray-500">Drag &amp; drop or click to upload</p>
                   )}
                 </div>
               </div>
@@ -211,7 +285,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                 className="hidden"
               />
 
-              {error && (
+              {error && step === 2 && (
                 <p className="text-xs text-red-500 mt-2">{error}</p>
               )}
 
@@ -219,14 +293,16 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                 <button
                   onClick={handleBack}
                   className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                  disabled={isRunning}
                 >
                   Back
                 </button>
                 <button
                   onClick={handleBeginSimulation}
-                  className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors disabled:opacity-60"
+                  disabled={isRunning}
                 >
-                  Begin Simulation
+                  {isRunning ? 'Running simulation…' : 'Begin Simulation'}
                 </button>
               </div>
             </div>

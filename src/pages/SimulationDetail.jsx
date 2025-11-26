@@ -1,30 +1,39 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/SimulationDetail.jsx
+
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { base44 } from '@/api/base44Client';
+
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
+
 import GravityOrbit from '@/components/gravity/GravityOrbit';
 import AnalyticsPanel from '@/components/gravity/AnalyticsPanel';
 import TopPersonasRow from '@/components/gravity/TopPersonasRow';
 
+import { callEdge } from '@/lib/api';
+import { mapSimulationToUI } from '@/lib/mappers';
+
 export default function SimulationDetail() {
   const [selectedPersona, setSelectedPersona] = useState(null);
-  
+
   const urlParams = new URLSearchParams(window.location.search);
   const simulationId = urlParams.get('id');
 
+  // Fetch simulation from Supabase via edge function
   const { data: simulation, isLoading } = useQuery({
     queryKey: ['simulation', simulationId],
-    queryFn: () => base44.entities.Simulation.filter({ id: simulationId }),
+    queryFn: () =>
+      callEdge('get_simulation', { simulation_id: simulationId }),
     enabled: !!simulationId,
-    select: (data) => data?.[0],
+    select: mapSimulationToUI,
   });
 
   const handlePersonaSelect = (persona) => {
     setSelectedPersona(persona);
   };
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -33,6 +42,7 @@ export default function SimulationDetail() {
     );
   }
 
+  // No simulation found
   if (!simulation) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
@@ -49,6 +59,7 @@ export default function SimulationDetail() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+
       {/* Header */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -59,10 +70,15 @@ export default function SimulationDetail() {
             <ArrowLeft className="w-4 h-4 text-gray-600" />
           </Link>
           <div>
-            <h1 className="text-sm font-medium text-gray-900">{simulation.title}</h1>
-            <p className="text-xs text-gray-400">Audience Fit: {simulation.audience_fit_score}%</p>
+            <h1 className="text-sm font-medium text-gray-900">
+              {simulation.title}
+            </h1>
+            <p className="text-xs text-gray-400">
+              Audience Fit: {simulation.audienceFitScore}% 
+            </p>
           </div>
         </div>
+
         <Link 
           to={createPageUrl('Landing')}
           className="text-lg font-medium text-gray-900 tracking-tight hover:text-gray-600 transition-colors"
@@ -73,20 +89,22 @@ export default function SimulationDetail() {
 
       {/* Main Content */}
       <div className="flex-1 flex">
+
         {/* Left: Gravity Visualization */}
         <div className="flex-1 flex flex-col min-w-0">
+
           {/* Orbit Area */}
           <div className="flex-1 p-6">
-            <GravityOrbit 
+            <GravityOrbit
               onPersonaSelect={handlePersonaSelect}
               selectedPersona={selectedPersona}
               savedPersonas={simulation.personas_data}
             />
           </div>
-          
-          {/* Top 4 Personas Row */}
+
+          {/* Top 4 Personas */}
           <div className="border-t border-gray-100">
-            <TopPersonasRow 
+            <TopPersonasRow
               onPersonaSelect={handlePersonaSelect}
               selectedPersona={selectedPersona}
               savedPersonas={simulation.personas_data}
@@ -96,11 +114,12 @@ export default function SimulationDetail() {
 
         {/* Right: Analytics Panel */}
         <div className="p-5 border-l border-gray-100 bg-gray-50/40">
-          <AnalyticsPanel 
-            selectedPersona={selectedPersona} 
+          <AnalyticsPanel
+            selectedPersona={selectedPersona}
             savedMetrics={simulation.metrics}
           />
         </div>
+
       </div>
 
       {/* Help Button */}
