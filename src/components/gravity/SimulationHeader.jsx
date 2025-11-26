@@ -1,45 +1,37 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Check } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
-import { createPageUrl } from '@/utils';
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronDown, Check } from "lucide-react";
+// Supabase + Auth
+import { supabase } from "../../supabaseClient";
+import { useAuth } from "../../lib/AuthContext";
+import { createPageUrl } from "@/utils";
 
-export default function SimulationHeader({ 
+export default function SimulationHeader({
   simulationData,
   onTitleChange,
-  onSave 
+  onSave,
 }) {
   // Generate default title
   const generateDefaultTitle = () => {
     const now = new Date();
-    const month = now.toLocaleString('en-US', { month: 'long' });
+    const month = now.toLocaleString("en-US", { month: "long" });
     const day = now.getDate();
     const year = now.getFullYear();
     return `Simulation – ${month} ${day}, ${year}`;
   };
 
-  const [title, setTitle] = useState(simulationData?.title || generateDefaultTitle());
+  const [title, setTitle] = useState(
+    simulationData?.title || generateDefaultTitle()
+  );
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isInputsExpanded, setIsInputsExpanded] = useState(true);
-  const [version, setVersion] = useState(1);
+  const [version, setVersion] = useState(1); // you can repurpose/remove later
   const titleInputRef = useRef(null);
   const navigate = useNavigate();
 
-  // Get session data
-  const sessionData = JSON.parse(sessionStorage.getItem('simulationData') || '{}');
-  const audienceDescription = sessionData.audienceDescription || 'Not specified';
-  const videoFileName = sessionData.videoFileName || 'video.mp4';
-
-  // Calculate version from existing simulations
-  useEffect(() => {
-    const fetchVersion = async () => {
-      const simulations = await base44.entities.Simulation.list();
-      setVersion(simulations.length + 1);
-    };
-    fetchVersion();
-  }, []);
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -58,7 +50,7 @@ export default function SimulationHeader({
   };
 
   const handleTitleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       setIsEditingTitle(false);
       onTitleChange?.(title);
     }
@@ -66,42 +58,60 @@ export default function SimulationHeader({
 
   const handleSave = async () => {
     if (isSaved || isSaving) return;
-    
-    setIsSaving(true);
-    
-    // Gather all simulation data
-    const dataToSave = {
-      title,
-      audience_fit_score: 82, // From default analytics data
-      top_persona: 'Creative Director',
-      video_url: videoFileName,
-      personas_data: [], // Would be populated with actual data
-      retention_data: ['95', '88', '80', '72', '65', '58', '52', '46', '40', '35'],
-      metrics: {
-        audienceDescription,
-        videoDuration: 12,
-        swipeProbability: 18,
-        predictedWatchTime: '8.4s',
-        engagementProbabilities: {
-          like: 78,
-          comment: 34,
-          share: 45,
-          save: 61,
-          follow: 23
-        }
-      }
-    };
 
-    await base44.entities.Simulation.create(dataToSave);
-    
-    setIsSaving(false);
-    setIsSaved(true);
-    onSave?.(dataToSave);
-    
-    // Redirect to profile page
-    setTimeout(() => {
-      navigate(createPageUrl('Profile'));
-    }, 500);
+    // Must be logged in to save
+    if (!isAuthenticated) {
+      // send them to login page
+      navigate("/login");
+      return;
+    }
+
+    // We need a simulation ID from props
+    const simulationId =
+      simulationData?.id || simulationData?.simulation_id;
+
+    if (!simulationId) {
+      console.error(
+        "SimulationHeader: no simulation id found in simulationData",
+        simulationData
+      );
+      alert("Could not determine which simulation to save.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Attach this simulation row to the current Supabase user
+      const { error } = await supabase
+        .from("simulations")
+        .update({
+          user_id: user.id,
+          // If you have a title column in the table, uncomment this:
+          // title,
+        })
+        .eq("id", simulationId);
+
+      if (error) {
+        console.error("Failed to save simulation", error);
+        alert("Failed to save simulation. Check console for details.");
+        setIsSaving(false);
+        return;
+      }
+
+      setIsSaving(false);
+      setIsSaved(true);
+      onSave?.();
+
+      // Optional: redirect to profile after a short delay
+      setTimeout(() => {
+        navigate(createPageUrl("Profile"));
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setIsSaving(false);
+      alert("Something went wrong while saving.");
+    }
   };
 
   return (
@@ -135,9 +145,10 @@ export default function SimulationHeader({
           disabled={isSaved || isSaving}
           className={`
             px-5 py-2 text-sm font-medium rounded-xl border transition-all duration-200
-            ${isSaved 
-              ? 'bg-white border-gray-200 text-gray-400 cursor-default' 
-              : 'bg-white border-gray-900 text-gray-900 hover:shadow-md hover:-translate-y-0.5'
+            ${
+              isSaved
+                ? "bg-white border-gray-200 text-gray-400 cursor-default"
+                : "bg-white border-gray-900 text-gray-900 hover:shadow-md hover:-translate-y-0.5"
             }
           `}
         >
@@ -151,11 +162,10 @@ export default function SimulationHeader({
               Saved <Check className="w-3.5 h-3.5" />
             </span>
           ) : (
-            'Save Simulation'
+            "Save Simulation"
           )}
         </button>
       </div>
-
     </div>
   );
 }

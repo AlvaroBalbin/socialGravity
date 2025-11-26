@@ -1,12 +1,16 @@
+// src/components/profile/ProfileHeader.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function ProfileHeader() {
-  const handleLogout = () => {
-    base44.auth.logout();
-  };
+  const { user, isAuthenticated, signOut } = useAuth();
+
+  const handleLogout = async () => {
+  await signOut();           // clears Supabase session
+  window.location.href = "/"; // send them back to landing
+};
 
   return (
     <header 
@@ -16,6 +20,7 @@ export default function ProfileHeader() {
       }}
     >
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        
         {/* Logo */}
         <Link 
           to={createPageUrl('Landing')}
@@ -24,13 +29,25 @@ export default function ProfileHeader() {
           Social Gravity
         </Link>
 
-        {/* Log Out Button */}
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors"
-        >
-          Log Out
-        </button>
+        <div className="flex items-center gap-4">
+
+          {/* Signed-in user email (optional but nice UX) */}
+          {isAuthenticated && (
+            <span className="text-xs text-gray-400">
+              {user?.email}
+            </span>
+          )}
+
+          {/* Logout button */}
+          {isAuthenticated && (
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              Log Out
+            </button>
+          )}
+        </div>
       </div>
 
       <style>{`

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Play } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
 import PersonaCard from './PersonaCard';
+/** @typedef {import('react').CSSProperties} CSSProperties */
+
 
 const mockPersonas = [
   { 
@@ -250,154 +251,373 @@ const mockPersonas = [
       'Not a primary target but may contribute to reach.'
     ]
   },
+
 ];
+function computePositions(personas) {
+  // Tight, readable orbits around the centre
+  const MIN_RADIUS_PX = 140; // highest engagement – close but not overlapping core
+  const MAX_RADIUS_PX = 260; // lowest engagement – still fairly tight
+  const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ~137.5°
 
-// Pre-calculate positions with engagement-based distance
-const personasWithPositions = mockPersonas.map((persona, index) => {
-  const maxDistance = 42;
-  const minDistance = 12;
-  const distance = maxDistance - ((persona.engagement / 100) * (maxDistance - minDistance));
-  
-  const baseAngle = (index / mockPersonas.length) * 2 * Math.PI;
-  const angleOffset = ((persona.engagement % 20) - 10) / 50;
-  const angle = baseAngle + angleOffset;
-  
-  const x = 50 + distance * Math.cos(angle);
-  const y = 50 + distance * Math.sin(angle);
-  
-  return { ...persona, x, y, distance };
-});
+  return personas.map((persona, index) => {
+    const rawEng = Number.isFinite(persona.engagement)
+      ? persona.engagement
+      : 50;
 
-// Get dot color based on engagement
+    // normalise 0–100 → 0–1
+    const norm = Math.min(1, Math.max(0, rawEng / 100));
+
+    // strong inward bias so high-engagement gets clearly pulled in
+    const inwardBias = Math.pow(norm, 2.0);
+
+    // 0 → MAX_RADIUS, 1 → MIN_RADIUS
+    const radiusPx =
+      MIN_RADIUS_PX + (1 - inwardBias) * (MAX_RADIUS_PX - MIN_RADIUS_PX);
+
+    const baseAngle = index * GOLDEN_ANGLE;
+
+    // small deterministic jitter for organic spacing
+    const jitter =
+      (((rawEng % 23) - 11.5) / 11.5) * (Math.PI / 40); // about ±4.5°
+    const finalAngle = baseAngle + jitter;
+
+    const angleDeg = (finalAngle * 180) / Math.PI;
+
+    return {
+      ...persona,
+      angleDeg,
+      radius: radiusPx,
+    };
+  });
+}
+
 const getDotColor = (engagement) => {
-  const lightness = 85 - (engagement * 0.7);
+  const safe = Number.isFinite(engagement) ? engagement : 50;
+  const norm = Math.min(1, Math.max(0, safe / 100));
+
+  // High contrast: cold personas = pale, hot personas = deep dark
+  // 0 → 88% light, 1 → 10% light
+  const lightness = 88 - Math.pow(norm, 1.4) * 78;
+
   return `hsl(0, 0%, ${lightness}%)`;
 };
 
-// Get dot size based on engagement
 const getDotSize = (engagement) => {
-  const minSize = 8;
-  const maxSize = 28;
-  return minSize + ((engagement / 100) * (maxSize - minSize));
+  const safe = Number.isFinite(engagement) ? engagement : 50;
+  const norm = Math.min(1, Math.max(0, safe / 100));
+
+  // Big difference between low and high engagement
+  const minSize = 10; // px – small
+  const maxSize = 48; // px – very large
+
+  const t = Math.pow(norm, 1.8); // strongly non-linear
+  return minSize + t * (maxSize - minSize);
 };
 
-export default function GravityOrbit({ onPersonaSelect, selectedPersona }) {
+export default function GravityOrbit({
+  onPersonaSelect,
+  selectedPersona,
+  savedPersonas,
+  savedMetrics,
+}) {
   const [hoveredPersona, setHoveredPersona] = useState(null);
   const [cardPosition, setCardPosition] = useState({ x: 0, y: 0 });
 
+  const personasWithPositions = useMemo(() => {
+    const source =
+      Array.isArray(savedPersonas) && savedPersonas.length > 0
+        ? savedPersonas
+        : mockPersonas;
+
+    return computePositions(source);
+  }, [savedPersonas]);
+
+  const metricsById = useMemo(() => {
+    const map = {};
+    if (Array.isArray(savedMetrics)) {
+      savedMetrics.forEach((m) => {
+        if (m.personaId) {
+          map[m.personaId] = m;
+        }
+      });
+    }
+    return map;
+  }, [savedMetrics]);
+
   const activePersona = hoveredPersona;
 
-  const handlePersonaHover = (persona, e) => {
-    if (!persona) {
-      setHoveredPersona(null);
-      return;
-    }
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const containerRect = e.currentTarget.closest('.orbit-container').getBoundingClientRect();
-    
-    setCardPosition({
-      x: rect.left - containerRect.left + rect.width / 2,
-      y: rect.top - containerRect.top
-    });
-    setHoveredPersona(persona);
-  };
+const handlePersonaHover = (persona, e) => {
+  if (!persona) {
+    setHoveredPersona(null);
+    return;
+  }
+
+  // Use the same outer container you used before
+  const containerEl = e.currentTarget.closest(".orbit-container");
+  if (!containerEl) {
+    return;
+  }
+
+  const containerRect = containerEl.getBoundingClientRect();
+
+  // persona.x / persona.y are percentages (0–100) of the orbit square.
+  // We’ll map them into pixel coordinates inside the container.
+  const baseX = (persona.x / 100) * containerRect.width;
+  const baseY = (persona.y / 100) * containerRect.height;
+
+  // Prefer card on the RIGHT of the dot, slightly above
+  const preferredOffsetX = 120;   // px to the right
+  const fallbackOffsetX = -120;   // px to the left if too close to right edge
+  const offsetY = -20;            // a bit above the dot
+
+  const containerWidth = containerRect.width;
+  const safeRightMargin = 16;
+
+  let offsetX = preferredOffsetX;
+  if (baseX + preferredOffsetX > containerWidth - safeRightMargin) {
+    // Flip to the left if we'd overflow the right side
+    offsetX = fallbackOffsetX;
+  }
+
+  setCardPosition({
+    x: baseX + offsetX,
+    y: baseY + offsetY,
+  });
+
+  setHoveredPersona(persona);
+};
+
+
 
   const handlePersonaClick = (persona) => {
-    if (selectedPersona?.id === persona.id) {
-      onPersonaSelect(null);
-    } else {
-      onPersonaSelect(persona);
-    }
+    if (!onPersonaSelect) return;
+    if (selectedPersona?.id === persona.id) onPersonaSelect(null);
+    else onPersonaSelect(persona);
   };
 
-  const handleBackgroundClick = (e) => {
-    // Only deselect if clicking directly on the background, not on a persona dot
-    if (e.target === e.currentTarget || e.target.classList.contains('orbit-bg')) {
-      onPersonaSelect(null);
-    }
-  };
+ const handleBackgroundClick = (e) => {
+  // If no persona is selected, nothing to clear
+  if (!selectedPersona) return;
+
+  // If the click happened INSIDE the PersonaCard, ignore it
+  const clickedInsideCard = e.target.closest('.persona-card');
+  if (clickedInsideCard) return;
+
+  // If it’s a dot, ignore it (dot click handler handles its own logic)
+  const clickedDot = e.target.closest('.dot-core');
+  if (clickedDot) return;
+
+  // Otherwise: clear selection
+  onPersonaSelect(null);
+};
+
 
   return (
-    <div 
+    <div
       className="relative w-full h-full flex items-center justify-center orbit-container cursor-default"
       onClick={handleBackgroundClick}
     >
-      {/* Radial glow background */}
-      <div 
+      {/* Light centre-focused background to use white space but keep it clean */}
+      <div
         className="absolute inset-0 orbit-bg"
         style={{
-          background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.01) 30%, transparent 55%)',
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.04) 0%, transparent 55%)",
         }}
       />
-      
-      {/* Orbit visualization container */}
-      <div className="relative w-full max-w-[460px] aspect-square orbit-bg">
-        
-        {/* Subtle orbit rings */}
-        <div className="absolute inset-[15%] rounded-full border border-gray-100 opacity-30 pointer-events-none" />
-        <div className="absolute inset-[30%] rounded-full border border-gray-100 opacity-20 pointer-events-none" />
-        <div className="absolute inset-[42%] rounded-full border border-gray-100 opacity-15 pointer-events-none" />
-        
-        {/* Central play button */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center shadow-sm z-10">
-          <Play className="w-5 h-5 text-gray-500 ml-0.5" fill="currentColor" />
+
+      {/* Orbit container – big so it actually uses the page width */}
+      <div className="relative w-full max-w-[720px] aspect-square">
+        {/* Simple black core */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+          <div className="bh-core" />
         </div>
 
         {/* Persona dots */}
-        {personasWithPositions.map((persona) => {
+        {personasWithPositions.map((persona, idx) => {
           const size = getDotSize(persona.engagement);
           const color = getDotColor(persona.engagement);
           const isSelected = selectedPersona?.id === persona.id;
-          
+
+          const entryDelay = 200 + ((idx * 90) % 900);
+          const floatDelayMs = 3500;
+
           return (
             <button
-              key={persona.id}
+              key={persona.id ?? idx}
               onMouseEnter={(e) => handlePersonaHover(persona, e)}
               onMouseLeave={() => handlePersonaHover(null)}
               onClick={() => handlePersonaClick(persona)}
-              className={`absolute rounded-full transition-all duration-300 cursor-pointer hover:scale-110 ${
-                isSelected ? 'ring-2 ring-gray-400 ring-offset-2' : ''
-              }`}
+              className="absolute cursor-pointer"
               style={{
-                width: `${size}px`,
-                height: `${size}px`,
-                left: `${persona.x}%`,
-                top: `${persona.y}%`,
-                backgroundColor: color,
-                transform: 'translate(-50%, -50%)',
-                animation: `float-${persona.id % 3} ${8 + (persona.id % 4)}s ease-in-out infinite`,
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
               }}
-            />
+            >
+          {/* orbit animation wrapper */}
+          <span
+            className="orbit-wrapper block"
+            style={
+              /** @type {CSSProperties} */
+              ({
+                "--orbit-angle-final": `${persona.angleDeg}deg`,
+                "--orbit-radius-final": `${persona.radius}px`,
+                animation: `orbit-in 3.2s ease-out ${entryDelay}ms forwards`,
+              })
+            }
+          >
+
+
+                {/* float animation */}
+                <span
+                  className="dot-float-wrapper block"
+                  style={{
+                    animation: `float-${idx % 3} ${
+                      9 + (idx % 4)
+                    }s ease-in-out ${floatDelayMs}ms infinite`,
+                  }}
+                >
+                  <span
+                    className="relative flex items-center justify-center"
+                    style={{
+                      width: `${size + 10}px`,
+                      height: `${size + 10}px`,
+                    }}
+                  >
+                    {isSelected && (
+                      <span
+                        className="absolute rounded-full selection-halo"
+                        style={{
+                          width: `${size + 8}px`,
+                          height: `${size + 8}px`,
+                        }}
+                      />
+                    )}
+
+                    <span
+                      className="dot-core block rounded-full"
+                      style={{
+                        width: `${size}px`,
+                        height: `${size}px`,
+                        backgroundColor: color,
+                      }}
+                    />
+                  </span>
+                </span>
+              </span>
+            </button>
           );
         })}
 
-        {/* Floating persona card */}
+        {/* Persona hover card */}
         {activePersona && (
-          <PersonaCard 
-            persona={activePersona} 
+          <PersonaCard
+            persona={activePersona}
+            metrics={metricsById[activePersona.id]}
             position={cardPosition}
           />
         )}
       </div>
 
-      {/* Subtle floating animation keyframes */}
+      {/* Animations & styles */}
       <style>{`
-        @keyframes float-0 {
-          0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
-          50% { transform: translate(-50%, -50%) translateY(-3px); }
+      /* centre black circle – nothing fancy, just a pulse */
+      .bh-core {
+        width: 120px;
+        height: 120px;
+        border-radius: 9999px;
+        background: #000;
+        box-shadow: 0 0 38px rgba(0,0,0,0.6);
+        animation: bh-core-pulse 4s ease-in-out infinite;
+      }
+
+      @keyframes bh-core-pulse {
+        0%, 100% {
+          transform: scale(0.96);
+          box-shadow: 0 0 32px rgba(0,0,0,0.55);
         }
-        @keyframes float-1 {
-          0%, 100% { transform: translate(-50%, -50%) translateX(0px); }
-          50% { transform: translate(-50%, -50%) translateX(3px); }
+        50% {
+          transform: scale(1.04);
+          box-shadow: 0 0 46px rgba(0,0,0,0.8);
         }
-        @keyframes float-2 {
-          0%, 100% { transform: translate(-50%, -50%) translate(0px, 0px); }
-          50% { transform: translate(-50%, -50%) translate(2px, -2px); }
+      }
+
+      /* NEW: default state for orbit wrappers so they don't flash in the centre */
+      .orbit-wrapper {
+        opacity: 0;
+        transform:
+          rotate(calc(var(--orbit-angle-final) - 220deg))
+          translateX(calc(var(--orbit-radius-final) * 1.2));
+        transform-origin: center center;
+      }
+
+      @keyframes orbit-in {
+        0% {
+          opacity: 0;
+          transform:
+            rotate(calc(var(--orbit-angle-final) - 220deg))
+            translateX(calc(var(--orbit-radius-final) * 1.2));
         }
-      `}</style>
+        /* keep them invisible a bit longer so they only appear after "leaving" */
+        25% {
+          opacity: 0;
+          transform:
+            rotate(calc(var(--orbit-angle-final) + 18deg))
+            translateX(calc(var(--orbit-radius-final) * 1.05));
+        }
+        0% {
+          opacity: 1;
+          transform:
+            rotate(calc(var(--orbit-angle-final) + 30deg))
+            translateX(calc(var(--orbit-radius-final) * 0.95));
+        }
+        100% {
+          opacity: 1;
+          transform:
+            rotate(var(--orbit-angle-final))
+            translateX(var(--orbit-radius-final));
+        }
+      }
+
+      .selection-halo {
+        border: 2px solid rgba(255,255,255,0.95);
+        box-shadow:
+          0 0 0 1px rgba(0,0,0,0.4),
+          0 0 14px rgba(255,255,255,0.7);
+      }
+
+      @keyframes float-0 {
+        0%,100% { transform: translate(0,0); }
+        50% { transform: translate(0,-4px); }
+      }
+      @keyframes float-1 {
+        0%,100% { transform: translate(0,0); }
+        50% { transform: translate(4px,1px); }
+      }
+      @keyframes float-2 {
+        0%,100% { transform: translate(0,0); }
+        50% { transform: translate(-3px,-3px); }
+      }
+
+      /* Hover card fade-in – depends on PersonaCard root having className="persona-card" */
+      @keyframes persona-card-fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(4px) scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .persona-card {
+        animation: persona-card-fade-in 15000ms ease-out;
+        transform-origin: top left;
+      }
+    `}</style>
+
     </div>
   );
 }
-
-export { mockPersonas, personasWithPositions };

@@ -66,6 +66,59 @@ function RetentionCurve({ retentionCurve = [], videoDuration = 12 }) {
   );
 }
 
+// Helper to normalize insights:
+// - if it's already an object {what_worked, what_to_improve, key_changes} → use it
+// - if it's just an array → treat it as "key_changes" so we still show it
+function normalizeInsights(raw) {
+  if (!raw) return { what_worked: [], what_to_improve: [], key_changes: [] };
+
+  // Already structured
+  if (
+    typeof raw === 'object' &&
+    !Array.isArray(raw) &&
+    ('what_worked' in raw || 'what_to_improve' in raw || 'key_changes' in raw)
+  ) {
+    return {
+      what_worked: raw.what_worked ?? [],
+      what_to_improve: raw.what_to_improve ?? [],
+      key_changes: raw.key_changes ?? [],
+    };
+  }
+
+  // Legacy flat array
+  if (Array.isArray(raw)) {
+    return {
+      what_worked: [],
+      what_to_improve: [],
+      key_changes: raw,
+    };
+  }
+
+  return { what_worked: [], what_to_improve: [], key_changes: [] };
+}
+
+function InsightGroup({ title, items }) {
+  if (!items || !items.length) return null;
+
+  return (
+    <div>
+      <p className="text-[11px] font-semibold text-gray-800 mb-2">
+        {title}
+      </p>
+      <div className="space-y-2 mb-3">
+        {items.map((insight, index) => (
+          <div key={index} className="flex gap-2">
+            <span className="text-gray-300 mt-0.5">•</span>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              {insight}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Props:
  *   - simulation: UISimulation (from mappers.ts)
@@ -167,11 +220,15 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const retentionCurve = general.retentionCurve || [];
 
   // Qualitative:
-  const storytellingInsights = isPersonaView
-    ? personaMetrics.qualitativeFeedback || []
-    : general.storytellingInsights || [];
+  // Persona view can still fall back to old qualitativeFeedback array
+  const rawStorytelling = isPersonaView
+    ? personaMetrics.storytellingInsights || personaMetrics.qualitativeFeedback
+    : general.storytellingInsights;
 
-  const editingInsights = general.editingInsights || [];
+  const rawEditing = general.editingInsights;
+
+  const storytelling = normalizeInsights(rawStorytelling);
+  const editing = normalizeInsights(rawEditing);
 
   const personaName =
     selectedPersona?.displayName ||
@@ -198,11 +255,11 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       : null;
 
   return (
-    <div className="w-80 flex-shrink-0 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)] pr-2">
+    <div className="w-full space-y-4">
       {/* TOP CARD - Dynamic: Overall Audience Fit / Selected Persona */}
       {!isPersonaView ? (
         // DEFAULT STATE: Overall Audience Fit
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm w-full">
           <div className="flex flex-col items-center">
             {/* Circular Score */}
             <div className="relative w-28 h-28 mb-4">
@@ -244,7 +301,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         </div>
       ) : (
         // SELECTED STATE: Selected Persona Card
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
           {/* Header */}
           <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium mb-2">
             Selected Persona
@@ -317,7 +374,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       )}
 
       {/* ENGAGEMENT PROBABILITIES */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
         <h3 className="text-sm font-semibold text-gray-900 mb-5">
           {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
         </h3>
@@ -353,7 +410,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       </div>
 
       {/* ATTENTION METRICS */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
         <h3 className="text-sm font-semibold text-gray-900 mb-5">
           Attention Metrics
         </h3>
@@ -397,23 +454,30 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       </div>
 
       {/* QUALITATIVE INSIGHTS */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-6">
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-6 w-full">
+        {/* STORYTELLING */}
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">
             Storytelling Insights
           </h3>
 
-          {storytellingInsights.length ? (
-            <div className="space-y-4">
-              {storytellingInsights.map((insight, index) => (
-                <div key={index} className="flex gap-3">
-                  <span className="text-gray-300 mt-0.5">•</span>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    {insight}
-                  </p>
-                </div>
-              ))}
-            </div>
+          {storytelling.what_worked.length ||
+          storytelling.what_to_improve.length ||
+          storytelling.key_changes.length ? (
+            <>
+              <InsightGroup
+                title="What worked"
+                items={storytelling.what_worked}
+              />
+              <InsightGroup
+                title="What to improve"
+                items={storytelling.what_to_improve}
+              />
+              <InsightGroup
+                title="Key changes"
+                items={storytelling.key_changes}
+              />
+            </>
           ) : (
             <p className="text-xs text-gray-400">
               Storytelling feedback will appear here once analysis completes.
@@ -421,22 +485,29 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
           )}
         </div>
 
+        {/* EDITING */}
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">
             Editing Style Insights
           </h3>
 
-          {editingInsights.length ? (
-            <div className="space-y-4">
-              {editingInsights.map((insight, index) => (
-                <div key={index} className="flex gap-3">
-                  <span className="text-gray-300 mt-0.5">•</span>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    {insight}
-                  </p>
-                </div>
-              ))}
-            </div>
+          {editing.what_worked.length ||
+          editing.what_to_improve.length ||
+          editing.key_changes.length ? (
+            <>
+              <InsightGroup
+                title="What worked"
+                items={editing.what_worked}
+              />
+              <InsightGroup
+                title="What to improve"
+                items={editing.what_to_improve}
+              />
+              <InsightGroup
+                title="Key changes"
+                items={editing.key_changes}
+              />
+            </>
           ) : (
             <p className="text-xs text-gray-400">
               Visual and pacing insights will appear here once analysis

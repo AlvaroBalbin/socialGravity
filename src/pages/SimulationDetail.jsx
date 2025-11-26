@@ -1,21 +1,25 @@
 // src/pages/SimulationDetail.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
-
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
+
+import { createPageUrl } from '@/utils';
+import { callEdge } from '@/lib/api';
+import { mapSimulationToUI } from '@/lib/mappers';
 
 import GravityOrbit from '@/components/gravity/GravityOrbit';
 import AnalyticsPanel from '@/components/gravity/AnalyticsPanel';
 import TopPersonasRow from '@/components/gravity/TopPersonasRow';
 
-import { callEdge } from '@/lib/api';
-import { mapSimulationToUI } from '@/lib/mappers';
-
 export default function SimulationDetail() {
   const [selectedPersona, setSelectedPersona] = useState(null);
+
+  // width of the right-hand analytics panel (resizable)
+  const [sidebarWidth, setSidebarWidth] = useState(420);
+  const minSidebarWidth = 320;
+  const maxSidebarWidth = 720;
 
   const urlParams = new URLSearchParams(window.location.search);
   const simulationId = urlParams.get('id');
@@ -33,10 +37,39 @@ export default function SimulationDetail() {
     setSelectedPersona(persona);
   };
 
+  // Drag handle for resizing analytics panel
+  const handleResizeMouseDown = useCallback(
+    (e) => {
+      e.preventDefault();
+
+      const startX = e.clientX;
+      const startWidth = sidebarWidth;
+
+      const handleMouseMove = (moveEvent) => {
+        const deltaX = startX - moveEvent.clientX; // drag left => grow sidebar
+        let nextWidth = startWidth + deltaX;
+
+        if (nextWidth < minSidebarWidth) nextWidth = minSidebarWidth;
+        if (nextWidth > maxSidebarWidth) nextWidth = maxSidebarWidth;
+
+        setSidebarWidth(nextWidth);
+      };
+
+      const handleMouseUp = () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    },
+    [sidebarWidth]
+  );
+
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="h-screen bg-white flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
       </div>
     );
@@ -45,9 +78,9 @@ export default function SimulationDetail() {
   // No simulation found
   if (!simulation) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+      <div className="h-screen bg-white flex flex-col items-center justify-center">
         <p className="text-sm text-gray-500 mb-4">Simulation not found</p>
-        <Link 
+        <Link
           to={createPageUrl('Profile')}
           className="text-sm text-gray-900 underline"
         >
@@ -57,13 +90,17 @@ export default function SimulationDetail() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-white flex flex-col">
+  const personas =
+    simulation.personas ??
+    simulation.personas_data ??
+    [];
 
+  return (
+    <div className="h-screen bg-white flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link 
+          <Link
             to={createPageUrl('Profile')}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors"
           >
@@ -74,12 +111,12 @@ export default function SimulationDetail() {
               {simulation.title}
             </h1>
             <p className="text-xs text-gray-400">
-              Audience Fit: {simulation.audienceFitScore}% 
+              Audience Fit: {simulation.audienceFitScore}%
             </p>
           </div>
         </div>
 
-        <Link 
+        <Link
           to={createPageUrl('Landing')}
           className="text-lg font-medium text-gray-900 tracking-tight hover:text-gray-600 transition-colors"
         >
@@ -88,38 +125,49 @@ export default function SimulationDetail() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
-
-        {/* Left: Gravity Visualization */}
-        <div className="flex-1 flex flex-col min-w-0">
-
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Left: Gravity Visualization + Top Personas */}
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Orbit Area */}
-          <div className="flex-1 p-6">
+          <div className="flex-1 min-h-0 p-6">
             <GravityOrbit
               onPersonaSelect={handlePersonaSelect}
               selectedPersona={selectedPersona}
-              savedPersonas={simulation.personas_data}
+              savedPersonas={personas}
+              savedMetrics={simulation.metrics}
             />
           </div>
 
-          {/* Top 4 Personas */}
+          {/* Top Personas */}
           <div className="border-t border-gray-100">
             <TopPersonasRow
               onPersonaSelect={handlePersonaSelect}
               selectedPersona={selectedPersona}
-              savedPersonas={simulation.personas_data}
+              savedPersonas={personas}
             />
           </div>
         </div>
 
-        {/* Right: Analytics Panel */}
-        <div className="p-5 border-l border-gray-100 bg-gray-50/40">
-          <AnalyticsPanel
-            selectedPersona={selectedPersona}
-            savedMetrics={simulation.metrics}
-          />
+        {/* Drag handle between orbit and analytics */}
+        <div
+          onMouseDown={handleResizeMouseDown}
+          className="w-[6px] cursor-col-resize bg-transparent hover:bg-gray-100 active:bg-gray-200 transition-colors relative"
+        >
+          <div className="absolute inset-y-3 left-1 right-1 rounded-full bg-gray-300 opacity-60 pointer-events-none" />
         </div>
 
+        {/* Right: Analytics Panel (resizable) */}
+        <div
+          className="shrink-0 h-full bg-gray-50/40 border-l border-gray-100"
+          style={{ width: sidebarWidth }}
+        >
+          <div className="h-full p-5 overflow-y-auto">
+            <AnalyticsPanel
+              simulation={simulation}
+              selectedPersona={selectedPersona}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Help Button */}

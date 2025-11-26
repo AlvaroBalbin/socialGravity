@@ -1,6 +1,6 @@
 // src/pages/SimulationResults.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HelpCircle } from 'lucide-react';
 
@@ -17,15 +17,23 @@ export default function SimulationResults() {
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [simulationTitle, setSimulationTitle] = useState('');
 
+  // width of the right-hand analytics panel (draggable)
+  const [sidebarWidth, setSidebarWidth] = useState(420);
+  const minSidebarWidth = 320;
+  const maxSidebarWidth = 720;
+
   // Read simulation ID from query params
   const urlParams = new URLSearchParams(window.location.search);
   const simulationId = urlParams.get('id');
 
-  // Load Supabase simulation
-  const { data: simulation, isLoading } = useQuery({
+  // Load Supabase simulation via edge function
+  const {
+    data: simulation,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['simulation_results', simulationId],
-    queryFn: () =>
-      callEdge('get_simulation', { simulation_id: simulationId }),
+    queryFn: () => callEdge('get_simulation', { simulation_id: simulationId }),
     enabled: !!simulationId,
     select: mapSimulationToUI,
   });
@@ -42,78 +50,114 @@ export default function SimulationResults() {
     console.log('Simulation saved:', data);
   };
 
+  // Drag-to-resize handler for analytics panel
+  const handleResizeMouseDown = useCallback(
+    (e) => {
+      e.preventDefault();
+
+      const startX = e.clientX;
+      const startWidth = sidebarWidth;
+
+      const handleMouseMove = (moveEvent) => {
+        const deltaX = startX - moveEvent.clientX; // drag left => grow sidebar
+        let nextWidth = startWidth + deltaX;
+
+        if (nextWidth < minSidebarWidth) nextWidth = minSidebarWidth;
+        if (nextWidth > maxSidebarWidth) nextWidth = maxSidebarWidth;
+
+        setSidebarWidth(nextWidth);
+      };
+
+      const handleMouseUp = () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    },
+    [sidebarWidth]
+  );
+
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="h-screen bg-white flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
       </div>
     );
   }
 
-  // No simulation found
-  if (!simulation) {
+  // No simulation found / error
+  if (isError || !simulation) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+      <div className="h-screen bg-white flex flex-col items-center justify-center">
         <p className="text-sm text-gray-500 mb-4">Simulation not found</p>
-        <a
-          href={createPageUrl('Profile')}
-          className="text-sm text-gray-900 underline"
-        >
+
+        <a href={createPageUrl('Profile')} className="text-sm text-gray-900 underline">
           Back to Profile
         </a>
       </div>
     );
   }
 
+  // Personas for orbit + top row (supports both new + old field names)
+  const personas = simulation.personas ?? simulation.personas_data ?? [];
+
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      
-      {/* Simulation Header */}
+    <div className="h-screen bg-white flex flex-col">
       <SimulationHeader
+        simulationData={simulation}
         onTitleChange={handleTitleChange}
         onSave={handleSave}
-        defaultTitle={simulation.title}
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex">
-
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left: Gravity Visualization */}
-        <div className="flex-1 flex flex-col min-w-0">
-
-          {/* Orbit Area */}
-          <div className="flex-1 p-6">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          {/* Orbit Area – shows ALL personas */}
+          <div className="flex-1 min-h-0 p-6">
             <GravityOrbit
               onPersonaSelect={handlePersonaSelect}
               selectedPersona={selectedPersona}
-              savedPersonas={simulation.personas_data}
+              savedPersonas={personas}
+              savedMetrics={simulation.metrics}
             />
           </div>
 
-          {/* Top 4 Personas Row */}
+          {/* Top Personas */}
           <div className="border-t border-gray-100">
             <TopPersonasRow
               onPersonaSelect={handlePersonaSelect}
               selectedPersona={selectedPersona}
-              savedPersonas={simulation.personas_data}
+              savedPersonas={personas}
             />
           </div>
         </div>
 
-        {/* Right: Analytics Panel */}
-        <div className="p-5 border-l border-gray-100 bg-gray-50/40">
-          <AnalyticsPanel
-            selectedPersona={selectedPersona}
-            savedMetrics={simulation.metrics}
-          />
+        {/* Drag handle between orbit and analytics */}
+        <div
+          onMouseDown={handleResizeMouseDown}
+          className="w-[6px] cursor-col-resize bg-transparent hover:bg-gray-100 active:bg-gray-200 transition-colors relative"
+        >
+          <div className="absolute inset-y-3 left-1 right-1 rounded-full bg-gray-300 opacity-60 pointer-events-none" />
         </div>
 
+        {/* Right: Analytics Panel (resizable) */}
+        <div
+          className="shrink-0 h-full bg-gray-50/40 border-l border-gray-100"
+          style={{ width: sidebarWidth }}
+        >
+          <div className="h-full p-5 overflow-y-auto">
+            <AnalyticsPanel simulation={simulation} selectedPersona={selectedPersona} />
+          </div>
+        </div>
       </div>
 
       {/* Help Button */}
       <button className="fixed bottom-5 right-5 w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors">
-        <HelpCircle className="w-4 h-4 text-white" strokeWidth={1.5}/>
+        <HelpCircle className="w-4 h-4 text-white" strokeWidth={1.5} />
       </button>
     </div>
   );

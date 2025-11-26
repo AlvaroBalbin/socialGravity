@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X } from 'lucide-react';
 import { callEdge } from '@/lib/api';
+import { supabase } from "../../supabaseClient";
 
 export default function SimulationModal({ isOpen, onClose, onComplete }) {
   const [step, setStep] = useState(1);
@@ -21,6 +22,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
     } else {
       document.body.style.overflow = '';
     }
+
     return () => {
       document.body.style.overflow = '';
     };
@@ -45,8 +47,10 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
       setError('Please describe your target audience');
       return;
     }
+
     setError('');
     setIsTransitioning(true);
+
     setTimeout(() => {
       setStep(2);
       setIsTransitioning(false);
@@ -55,6 +59,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
 
   const handleBack = () => {
     setIsTransitioning(true);
+
     setTimeout(() => {
       setStep(1);
       setIsTransitioning(false);
@@ -66,7 +71,10 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
     if (!file) return;
 
     // Validate file type
-    if (!file.type.includes('video/mp4') && !file.type.includes('video/quicktime')) {
+    if (
+      !file.type.includes('video/mp4') &&
+      !file.type.includes('video/quicktime')
+    ) {
       setError('Please upload an MP4 or MOV file');
       return;
     }
@@ -77,10 +85,12 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
 
     video.onloadedmetadata = () => {
       window.URL.revokeObjectURL(video.src);
+
       if (video.duration > 60) {
         setError('Video must be 60 seconds or less');
         return;
       }
+
       setError('');
       setVideoFile(file);
       setFileName(file.name);
@@ -93,6 +103,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   const handleDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
+
     if (file) {
       const fakeEvent = { target: { files: [file] } };
       handleFileChange(fakeEvent);
@@ -104,8 +115,14 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
       setError('Please describe your target audience');
       return;
     }
+
     if (!videoFile) {
       setError('Please upload a video');
+      return;
+    }
+
+    if (!videoDurationSeconds) {
+      setError('Unable to read video duration. Try re-uploading the file.');
       return;
     }
 
@@ -113,63 +130,80 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
     setIsRunning(true);
 
     try {
-      // MVP: use your public sample video URL in Supabase Storage
-      // In the future, this should be replaced with an actual upload of `videoFile`.
-      const videoUrl =
-        'https://ootcwmipvdlyvjcvdtpo.supabase.co/storage/v1/object/public/videos/sample-5s.mp4';
-
-      const duration = videoDurationSeconds ?? 5.0;
-
       // 1) Create simulation
       const startRes = await callEdge('start_simulation', {
         audience_prompt: audienceDescription,
       });
 
-      const simulationId = startRes.simulation_id;
+      const simulationId =
+        startRes.simulation_id || startRes.simulationId || startRes.id;
+
       if (!simulationId) {
         throw new Error('start_simulation did not return simulation_id');
       }
 
-      // 2) Attach video URL + duration
+      // 2) Upload video to Supabase Storage (videos bucket)
+      const ext = videoFile.name.split('.').pop() || 'mp4';
+      const path = `${simulationId}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(path, videoFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        setError(uploadError.message || 'Failed to upload video to storage');
+        setIsRunning(false);
+        return;
+      }
+
+      const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/videos/${path}`;
+
+      // 3) Attach video URL + duration
       await callEdge('set_video_url', {
         simulation_id: simulationId,
-        video_url: videoUrl,
-        video_duration_seconds: duration,
+        video_url: publicUrl,
+        video_duration_seconds: Math.round(videoDurationSeconds),
       });
 
-      // 3) Transcribe video
+      // 4) Transcribe video
       await callEdge('transcribe_video', {
         simulation_id: simulationId,
       });
 
-      // 4) Generate personas
+      // 5) Generate personas
       await callEdge('generate_personas', {
         simulation_id: simulationId,
       });
 
-      // 5) Analyze simulation (persona reactions / metrics)
+      // 6) Analyze simulation (persona reactions / metrics)
       await callEdge('analyze_simulation', {
         simulation_id: simulationId,
       });
 
-      // 6) Start visual analysis (frames + visual summary)
+      // 7) Start visual analysis (frames + visual summary)
       await callEdge('start_visual_analysis', {
         simulation_id: simulationId,
       });
 
-      // 7) Notify parent that everything is done
+      // 8) Notify parent that everything is done
       onComplete({
         simulationId,
         audienceDescription,
         videoFile,
+        videoDurationSeconds,
+        videoUrl: publicUrl,
       });
     } catch (err) {
       console.error('Error running simulation pipeline', err);
       setError(
         err?.message || 'Something went wrong while running the simulation.'
       );
+    } finally {
       setIsRunning(false);
-      return;
     }
   };
 
@@ -178,9 +212,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{
-        animation: 'modalFadeIn 0.5s ease-out',
-      }}
+      style={{ animation: 'modalFadeIn 0.5s ease-out' }}
     >
       {/* Backdrop */}
       <div
@@ -192,7 +224,8 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
       <div
         className="relative bg-white rounded-[20px] border border-gray-100 p-8 w-full max-w-[500px] mx-4"
         style={{
-          boxShadow: '0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
+          boxShadow:
+            '0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
           animation: 'cardSlideUp 0.5s ease-out',
         }}
       >
@@ -215,8 +248,10 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
               <h2 className="text-lg font-medium text-gray-900 mb-2">
                 Describe your target audience
               </h2>
+
               <p className="text-sm text-gray-500 font-light mb-6">
-                Tell us who the content is intended for. The AI will generate personas based on your description.
+                Tell us who the content is intended for. The AI will generate
+                personas based on your description.
               </p>
 
               <textarea
@@ -238,6 +273,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                 >
                   Cancel
                 </button>
+
                 <button
                   onClick={handleNext}
                   className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
@@ -254,6 +290,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
               <h2 className="text-lg font-medium text-gray-900 mb-2">
                 Upload your video
               </h2>
+
               <p className="text-sm text-gray-500 font-light mb-6">
                 Maximum 60 seconds (MP4 or MOV).
               </p>
@@ -267,12 +304,20 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
               >
                 <div className="flex flex-col items-center">
                   <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-3">
-                    <Upload className="w-5 h-5 text-gray-400" strokeWidth={1.5} />
+                    <Upload
+                      className="w-5 h-5 text-gray-400"
+                      strokeWidth={1.5}
+                    />
                   </div>
+
                   {fileName ? (
-                    <p className="text-sm text-gray-900 font-medium">{fileName}</p>
+                    <p className="text-sm text-gray-900 font-medium">
+                      {fileName}
+                    </p>
                   ) : (
-                    <p className="text-sm text-gray-500">Drag &amp; drop or click to upload</p>
+                    <p className="text-sm text-gray-500">
+                      Drag &amp; drop or click to upload
+                    </p>
                   )}
                 </div>
               </div>
@@ -297,6 +342,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                 >
                   Back
                 </button>
+
                 <button
                   onClick={handleBeginSimulation}
                   className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors disabled:opacity-60"
@@ -312,17 +358,22 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
 
       <style>{`
         @keyframes modalFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes cardSlideUp {
-          from { 
-            opacity: 0; 
-            transform: translateY(8px); 
+          from {
+            opacity: 0;
           }
-          to { 
-            opacity: 1; 
-            transform: translateY(0); 
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes cardSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
       `}</style>
