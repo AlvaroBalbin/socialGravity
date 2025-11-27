@@ -50,6 +50,7 @@ export interface BackendMetrics {
 export interface BackendSimulation {
   id: string;
   created_at: string;
+  title: string | null;   
   audience_prompt: string | null;
   video_url: string | null;
   transcript: string | null;
@@ -721,7 +722,7 @@ export function mapSimulationToUI(
     createdAt: simulation.created_at,
 
     // Use audience_prompt as the main title for now
-    title: simulation.audience_prompt || "Simulation",
+    title: simulation.title || simulation.audience_prompt || "Simulation",
 
     status: simulation.status,
     errorMessage: simulation.error_message,

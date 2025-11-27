@@ -5,6 +5,7 @@ import { supabase } from "../../supabaseClient";
 
 export default function SimulationModal({ isOpen, onClose, onComplete }) {
   const [step, setStep] = useState(1);
+  const [simulationTitle, setSimulationTitle] = useState(''); 
   const [audienceDescription, setAudienceDescription] = useState('');
   const [videoFile, setVideoFile] = useState(null);
   const [fileName, setFileName] = useState('');
@@ -32,6 +33,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   useEffect(() => {
     if (isOpen) {
       setStep(1);
+      setSimulationTitle('');
       setAudienceDescription('');
       setVideoFile(null);
       setFileName('');
@@ -43,19 +45,24 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   }, [isOpen]);
 
   const handleNext = () => {
-    if (!audienceDescription.trim()) {
-      setError('Please describe your target audience');
-      return;
-    }
+  if (!simulationTitle.trim()) {
+    setError('Please enter a title for this simulation');
+    return;
+  }
 
-    setError('');
-    setIsTransitioning(true);
+  if (!audienceDescription.trim()) {
+    setError('Please describe your target audience');
+    return;
+  }
 
-    setTimeout(() => {
-      setStep(2);
-      setIsTransitioning(false);
-    }, 200);
-  };
+  setError('');
+  setIsTransitioning(true);
+
+  setTimeout(() => {
+    setStep(2);
+    setIsTransitioning(false);
+  }, 200);
+};
 
   const handleBack = () => {
     setIsTransitioning(true);
@@ -244,46 +251,68 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
           style={{ opacity: isTransitioning ? 0 : 1 }}
         >
           {step === 1 && (
-            <div>
-              <h2 className="text-lg font-medium text-gray-900 mb-2">
-                Describe your target audience
-              </h2>
+  <div>
+    <h2 className="text-lg font-medium text-gray-900 mb-2">
+      Name your simulation & audience
+    </h2>
 
-              <p className="text-sm text-gray-500 font-light mb-6">
-                Tell us who the content is intended for. The AI will generate
-                personas based on your description.
-              </p>
+    <p className="text-sm text-gray-500 font-light mb-6">
+      Give this simulation a clear title and describe who the content is for.
+    </p>
 
-              <textarea
-                value={audienceDescription}
-                onChange={(e) => setAudienceDescription(e.target.value)}
-                placeholder="Example: Gen Z viewers who like skincare, quiet luxury, aesthetics and thoughtful product reviews."
-                className="w-full h-32 p-4 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-gray-300 transition-colors"
-              />
+    {/* Simulation Title */}
+    <div className="mb-4">
+      <label className="block text-xs font-medium text-gray-500 mb-1">
+        Simulation title
+      </label>
 
-              {error && step === 1 && (
-                <p className="text-xs text-red-500 mt-2">{error}</p>
-              )}
+      <input
+        type="text"
+        value={simulationTitle}
+        onChange={(e) => setSimulationTitle(e.target.value)}
+        placeholder="e.g. Hook Test — Skincare Gen-Z TikTok"
+        className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-300 transition-colors"
+            />
+          </div>
 
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={onClose}
-                  className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                  disabled={isRunning}
-                >
-                  Cancel
-                </button>
+          {/* Audience Description */}
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Audience description
+          </label>
 
-                <button
-                  onClick={handleNext}
-                  className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
-                  disabled={isRunning}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+          <textarea
+            value={audienceDescription}
+            onChange={(e) => setAudienceDescription(e.target.value)}
+            placeholder="Example: Gen Z viewers who like skincare, quiet luxury, aesthetics and thoughtful product reviews."
+            className="w-full h-32 p-4 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-gray-300 transition-colors"
+          />
+
+          {/* Error */}
+          {error && (
+            <p className="text-xs text-red-500 mt-2">{error}</p>
           )}
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              disabled={isRunning}
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={handleNext}
+              className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
+              disabled={isRunning}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
 
           {step === 2 && (
             <div>

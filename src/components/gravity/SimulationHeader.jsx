@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Check } from "lucide-react";
+import { Check } from "lucide-react";
 // Supabase + Auth
 import { supabase } from "../../supabaseClient";
 import { useAuth } from "../../lib/AuthContext";
@@ -11,7 +11,7 @@ export default function SimulationHeader({
   onTitleChange,
   onSave,
 }) {
-  // Generate default title
+  // Generate default title if nothing exists (old sims / weird states)
   const generateDefaultTitle = () => {
     const now = new Date();
     const month = now.toLocaleString("en-US", { month: "long" });
@@ -20,18 +20,34 @@ export default function SimulationHeader({
     return `Simulation – ${month} ${day}, ${year}`;
   };
 
-  const [title, setTitle] = useState(
-    simulationData?.title || generateDefaultTitle()
-  );
+  // Prefer explicit title, then audience prompt, then fallback
+  const initialTitle =
+    simulationData?.title ||
+    simulationData?.audiencePrompt ||
+    generateDefaultTitle();
+
+  const [title, setTitle] = useState(initialTitle);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isInputsExpanded, setIsInputsExpanded] = useState(true);
-  const [version, setVersion] = useState(1); // you can repurpose/remove later
+
   const titleInputRef = useRef(null);
   const navigate = useNavigate();
-
   const { user, isAuthenticated } = useAuth();
+
+  // Keep local title in sync when you navigate between simulations
+  useEffect(() => {
+    const nextTitle =
+      simulationData?.title ||
+      simulationData?.audiencePrompt ||
+      generateDefaultTitle();
+    setTitle(nextTitle);
+    setIsSaved(false); // new sim = not saved in this session yet
+  }, [
+    simulationData?.id,
+    simulationData?.title,
+    simulationData?.audiencePrompt,
+  ]);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -44,22 +60,28 @@ export default function SimulationHeader({
     setIsEditingTitle(true);
   };
 
-  const handleTitleBlur = () => {
+  const commitTitle = (nextTitle) => {
+    const trimmed = nextTitle.trim() || generateDefaultTitle();
+    setTitle(trimmed);
     setIsEditingTitle(false);
-    onTitleChange?.(title);
+    setIsSaved(false); // editing = not saved
+    onTitleChange?.(trimmed);
+  };
+
+  const handleTitleBlur = () => {
+    commitTitle(title);
   };
 
   const handleTitleKeyDown = (e) => {
     if (e.key === "Enter") {
-      setIsEditingTitle(false);
-      onTitleChange?.(title);
+      e.preventDefault();
+      commitTitle(title);
     }
   };
 
   const handleSave = async () => {
     if (isSaved || isSaving) return;
 
-    // Figure out which simulation we’re talking about
     const simulationId =
       simulationData?.id || simulationData?.simulation_id;
 
@@ -72,9 +94,9 @@ export default function SimulationHeader({
       return;
     }
 
-    // 🔒 Not logged in → send to login with redirect + claim_simulation
+    // Not logged in → send to login + claim_simulation
     if (!isAuthenticated) {
-      const redirectTarget = createPageUrl("Profile"); // or keep as '/profile'
+      const redirectTarget = createPageUrl("Profile");
       const redirectParam = encodeURIComponent(redirectTarget);
 
       navigate(
@@ -83,7 +105,6 @@ export default function SimulationHeader({
       return;
     }
 
-    // ✅ Logged in → attach simulation to this user
     setIsSaving(true);
 
     try {
@@ -91,8 +112,7 @@ export default function SimulationHeader({
         .from("simulations")
         .update({
           user_id: user.id,
-          // If you have a title column in the table, uncomment this:
-          // title,
+          title: title, // 👈 persist the current title
         })
         .eq("id", simulationId);
 
@@ -105,8 +125,7 @@ export default function SimulationHeader({
 
       setIsSaving(false);
       setIsSaved(true);
-      onSave?.();
-
+      onSave?.({ title });
       // Optional: redirect to profile after a short delay
       setTimeout(() => {
         navigate(createPageUrl("Profile"));
@@ -147,14 +166,11 @@ export default function SimulationHeader({
         <button
           onClick={handleSave}
           disabled={isSaved || isSaving}
-          className={`
-            px-5 py-2 text-sm font-medium rounded-xl border transition-all duration-200
-            ${
-              isSaved
-                ? "bg-white border-gray-200 text-gray-400 cursor-default"
-                : "bg-white border-gray-900 text-gray-900 hover:shadow-md hover:-translate-y-0.5"
-            }
-          `}
+          className={`px-5 py-2 text-sm font-medium rounded-xl border transition-all duration-200 ${
+            isSaved
+              ? "bg-white border-gray-200 text-gray-400 cursor-default"
+              : "bg-white border-gray-900 text-gray-900 hover:shadow-md hover:-translate-y-0.5"
+          }`}
         >
           {isSaving ? (
             <span className="flex items-center gap-2">
