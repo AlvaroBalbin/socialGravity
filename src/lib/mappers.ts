@@ -3,9 +3,11 @@
  *********************************/
 
 export interface BackendStoryEditingBuckets {
+  summary?: string;
   what_worked?: string[];
   what_to_improve?: string[];
   key_changes?: string[];
+  deep_dive?: string[];
 }
 
 export interface BackendVisualAnalysis {
@@ -25,6 +27,26 @@ export interface BackendVisualAnalysis {
   editing_style_insights?: BackendStoryEditingBuckets | null;
 }
 
+export interface BackendMetricsEngagementProbabilities {
+  like?: number | null;
+  comment?: number | null;
+  share?: number | null;
+  save?: number | null;
+  follow?: number | null;
+}
+
+export interface BackendMetricsAttention {
+  swipe_probability?: number | null;
+  predicted_watch_time_seconds?: number | null;
+  retention_curve?: number[] | null;
+}
+
+export interface BackendMetrics {
+  overall_audience_fit?: number | null;
+  engagement_probabilities?: BackendMetricsEngagementProbabilities | null;
+  attention_metrics?: BackendMetricsAttention | null;
+}
+
 export interface BackendSimulation {
   id: string;
   created_at: string;
@@ -37,6 +59,11 @@ export interface BackendSimulation {
 
   // Can be jsonb (object) or text, so allow both
   visual_analysis: BackendVisualAnalysis | string | null;
+
+  // Newer top-level JSONB columns (also may be text)
+  storytelling_insights?: BackendStoryEditingBuckets | string | null;
+  editing_insights?: BackendStoryEditingBuckets | string | null;
+  metrics?: BackendMetrics | string | null;
 }
 
 export interface BackendPersonaJson {
@@ -236,11 +263,16 @@ export interface UIPersonaMetrics {
  *
  * NOTE: we keep snake_case keys because AnalyticsPanel.normalizeInsights
  * expects what_worked / what_to_improve / key_changes.
+ *
+ * We also carry optional summary + deep_dive for future
+ * “expanded insights” modals.
  */
 export interface UIInsightBuckets {
+  summary?: string | null;
   what_worked: string[];
   what_to_improve: string[];
   key_changes: string[];
+  deep_dive?: string[];
 }
 
 /**
@@ -281,7 +313,7 @@ export interface UISimulation {
 
   visualAnalysis: BackendVisualAnalysis | null;
 
-  /** Derived: average alignment score across personas (0–100) */
+  /** Derived: average alignment score across personas (0–100) OR backend overall_audience_fit */
   audienceFitScore: number | null;
 
   /** Persona summaries for orbit + cards */
@@ -290,7 +322,7 @@ export interface UISimulation {
   /** Alias used by existing components (GravityOrbit, TopPersonasRow) */
   personas_data: UIPersonaSummary[];
 
-  /** Metrics for AnalyticsPanel etc */
+  /** Metrics for AnalyticsPanel etc (per-persona reactions) */
   metrics: UIPersonaMetrics[];
 
   /** Aggregated overall feedback for "general" view */
@@ -304,22 +336,38 @@ export interface UISimulation {
  * Helpers
  *********************************/
 
+// Generic safe JSON parse helper (handles jsonb or text)
+function parseMaybeJson<T>(
+  value: T | string | null | undefined
+): T | null {
+  if (!value) return null;
+  if (typeof value === "object") return value as T;
+
+  try {
+    return JSON.parse(value as string) as T;
+  } catch {
+    console.warn("Failed to parse JSON field");
+    return null;
+  }
+}
+
 // Safely parse visual_analysis which might be text or already JSON
 function parseVisualAnalysis(
   visual: BackendSimulation["visual_analysis"]
 ): BackendVisualAnalysis | null {
-  if (!visual) return null;
+  return parseMaybeJson<BackendVisualAnalysis>(visual);
+}
 
-  if (typeof visual === "object") {
-    return visual as BackendVisualAnalysis;
-  }
+function parseBucketsField(
+  field: BackendStoryEditingBuckets | string | null | undefined
+): BackendStoryEditingBuckets | null {
+  return parseMaybeJson<BackendStoryEditingBuckets>(field ?? null);
+}
 
-  try {
-    return JSON.parse(visual as string) as BackendVisualAnalysis;
-  } catch {
-    console.warn("Failed to parse visual_analysis JSON");
-    return null;
-  }
+function parseMetricsField(
+  field: BackendMetrics | string | null | undefined
+): BackendMetrics | null {
+  return parseMaybeJson<BackendMetrics>(field ?? null);
 }
 
 /**
@@ -330,13 +378,21 @@ function parseVisualAnalysis(
  *
  * Used only as fallback if backend buckets are missing.
  */
-function bucketizeFlatInsights(list: string[] | null | undefined): UIInsightBuckets {
+function bucketizeFlatInsights(
+  list: string[] | null | undefined
+): UIInsightBuckets {
   const items = (list ?? [])
     .map((s) => (s || "").trim())
     .filter(Boolean);
 
   if (!items.length) {
-    return { what_worked: [], what_to_improve: [], key_changes: [] };
+    return {
+      summary: null,
+      what_worked: [],
+      what_to_improve: [],
+      key_changes: [],
+      deep_dive: [],
+    };
   }
 
   const half = Math.ceil(items.length / 2);
@@ -347,19 +403,34 @@ function bucketizeFlatInsights(list: string[] | null | undefined): UIInsightBuck
   const what_to_improve = improveRaw.slice(0, 3);
   const key_changes = items.slice(0, 3);
 
-  return { what_worked, what_to_improve, key_changes };
+  return {
+    summary: null,
+    what_worked,
+    what_to_improve,
+    key_changes,
+    deep_dive: [],
+  };
 }
 
 function fromBackendBuckets(
   src: BackendStoryEditingBuckets | null | undefined
 ): UIInsightBuckets {
   if (!src) {
-    return { what_worked: [], what_to_improve: [], key_changes: [] };
+    return {
+      summary: null,
+      what_worked: [],
+      what_to_improve: [],
+      key_changes: [],
+      deep_dive: [],
+    };
   }
+
   return {
+    summary: src.summary ?? null,
     what_worked: (src.what_worked ?? []).filter(Boolean),
     what_to_improve: (src.what_to_improve ?? []).filter(Boolean),
     key_changes: (src.key_changes ?? []).filter(Boolean),
+    deep_dive: (src.deep_dive ?? []).filter(Boolean),
   };
 }
 
@@ -371,10 +442,19 @@ function fromBackendBuckets(
  * Map the raw get_simulation response from Supabase
  * into the UI shape expected by the Gravity components.
  */
-export function mapSimulationToUI(response: GetSimulationResponse): UISimulation {
+export function mapSimulationToUI(
+  response: GetSimulationResponse
+): UISimulation {
   const { simulation, personas = [], reactions = [] } = response;
 
   const visualAnalysis = parseVisualAnalysis(simulation.visual_analysis);
+  const topLevelStoryBuckets = parseBucketsField(
+    simulation.storytelling_insights
+  );
+  const topLevelEditingBuckets = parseBucketsField(
+    simulation.editing_insights
+  );
+  const backendMetrics = parseMetricsField(simulation.metrics);
 
   // Index personas by persona_id for easy lookup when building metrics
   const personaById = new Map<string, BackendPersonaRow>();
@@ -397,7 +477,7 @@ export function mapSimulationToUI(response: GetSimulationResponse): UISimulation
       engagement: null,
       watchTimeSeconds: null,
       watchTime: null,
-      tags: [], // you can derive tags later if you want
+      tags: [],
     };
   });
 
@@ -448,11 +528,15 @@ export function mapSimulationToUI(response: GetSimulationResponse): UISimulation
     // 🔗 Push engagement + watch time onto the matching UIPersonaSummary
     const personaSummary = uiPersonaById.get(metric.personaId);
     if (personaSummary) {
-      personaSummary.engagement = Math.round(metric.alignmentScore * 100);
+      personaSummary.engagement = Math.round(
+        metric.alignmentScore * 100
+      );
       personaSummary.watchTimeSeconds = metric.watchTimeSeconds;
 
       if (typeof metric.watchTimeSeconds === "number") {
-        personaSummary.watchTime = `${metric.watchTimeSeconds.toFixed(1)}s`;
+        personaSummary.watchTime = `${metric.watchTimeSeconds.toFixed(
+          1
+        )}s`;
       } else {
         personaSummary.watchTime = null;
       }
@@ -464,10 +548,22 @@ export function mapSimulationToUI(response: GetSimulationResponse): UISimulation
   // ---------- Derived audience fit ----------
 
   let audienceFitScore: number | null = null;
-  if (uiMetrics.length > 0) {
+
+  // Prefer backend overall_audience_fit if present
+  if (
+    backendMetrics &&
+    typeof backendMetrics.overall_audience_fit === "number" &&
+    !Number.isNaN(backendMetrics.overall_audience_fit)
+  ) {
+    audienceFitScore = Math.round(
+      backendMetrics.overall_audience_fit
+    );
+  } else if (uiMetrics.length > 0) {
     const avgAlignment =
-      uiMetrics.reduce((sum, m) => sum + (m.alignmentScore || 0), 0) /
-      uiMetrics.length;
+      uiMetrics.reduce(
+        (sum, m) => sum + (m.alignmentScore || 0),
+        0
+      ) / uiMetrics.length;
     audienceFitScore = Math.round(avgAlignment * 100);
   }
 
@@ -481,6 +577,7 @@ export function mapSimulationToUI(response: GetSimulationResponse): UISimulation
   let avgSwipe: number | null = null;
   let avgWatch: number | null = null;
 
+  // Default: derive from persona metrics
   if (uiMetrics.length > 0) {
     const n = uiMetrics.length;
     const sum = (fn: (m: UIPersonaMetrics) => number) =>
@@ -495,18 +592,71 @@ export function mapSimulationToUI(response: GetSimulationResponse): UISimulation
     avgWatch = sum((m) => m.watchTimeSeconds) / n;
   }
 
+  // If backendMetrics.engagement_probabilities exists, override with that
+  if (backendMetrics?.engagement_probabilities) {
+    const e = backendMetrics.engagement_probabilities;
+    if (typeof e.like === "number") avgLike = e.like;
+    if (typeof e.comment === "number") avgComment = e.comment;
+    if (typeof e.share === "number") avgShare = e.share;
+    if (typeof e.save === "number") avgSave = e.save;
+    if (typeof e.follow === "number") avgFollow = e.follow;
+  }
+
+  // If backendMetrics.attention_metrics exists, override attention stuff
+  let retentionCurve: number[] = [];
+  const att = backendMetrics?.attention_metrics;
+
+  if (att?.retention_curve && att.retention_curve.length > 0) {
+    retentionCurve = [...att.retention_curve];
+  }
+
+  if (
+    typeof att?.predicted_watch_time_seconds === "number" &&
+    !Number.isNaN(att.predicted_watch_time_seconds)
+  ) {
+    avgWatch = att.predicted_watch_time_seconds;
+  }
+
+  if (
+    typeof att?.swipe_probability === "number" &&
+    !Number.isNaN(att.swipe_probability)
+  ) {
+    avgSwipe = att.swipe_probability;
+  }
+
+  // If no backend retention curve, fall back to simple synthetic one
+  if (!retentionCurve.length) {
+    const baseRetention =
+      avgWatch && simulation.video_duration_seconds
+        ? Math.min(
+            avgWatch / simulation.video_duration_seconds,
+            1
+          )
+        : 0.7; // fallback
+
+    for (let i = 0; i < 10; i++) {
+      // decay slightly over time
+      retentionCurve.push(Math.max(baseRetention - i * 0.05, 0.1));
+    }
+  }
+
   // --- Storytelling insights ---
   let storytellingInsights: UIInsightBuckets;
 
-  if (visualAnalysis?.storytelling_insights) {
-    // Preferred path: take buckets directly from visual_analysis
+  if (topLevelStoryBuckets) {
+    // Preferred: top-level column from analyze_simulation
+    storytellingInsights = fromBackendBuckets(topLevelStoryBuckets);
+  } else if (visualAnalysis?.storytelling_insights) {
+    // Secondary: buckets from visual_analysis JSON
     storytellingInsights = fromBackendBuckets(
       visualAnalysis.storytelling_insights
     );
   } else {
     // Fallback: aggregate persona qualitative feedback
     const storytellingFlat: string[] = Array.from(
-      new Set(uiMetrics.flatMap((m) => m.qualitativeFeedback || []))
+      new Set(
+        uiMetrics.flatMap((m) => m.qualitativeFeedback || [])
+      )
     ).slice(0, 8);
 
     storytellingInsights = bucketizeFlatInsights(storytellingFlat);
@@ -515,7 +665,9 @@ export function mapSimulationToUI(response: GetSimulationResponse): UISimulation
   // --- Editing insights ---
   let editingInsights: UIInsightBuckets;
 
-  if (visualAnalysis?.editing_style_insights) {
+  if (topLevelEditingBuckets) {
+    editingInsights = fromBackendBuckets(topLevelEditingBuckets);
+  } else if (visualAnalysis?.editing_style_insights) {
     editingInsights = fromBackendBuckets(
       visualAnalysis.editing_style_insights
     );
@@ -532,7 +684,9 @@ export function mapSimulationToUI(response: GetSimulationResponse): UISimulation
         editingFlat.push(`Pacing: ${va.pacing_description}`);
       }
       if (va.on_screen_text_usage) {
-        editingFlat.push(`On-screen text: ${va.on_screen_text_usage}`);
+        editingFlat.push(
+          `On-screen text: ${va.on_screen_text_usage}`
+        );
       }
       if (va.quality_assessment) {
         editingFlat.push(
@@ -540,23 +694,13 @@ export function mapSimulationToUI(response: GetSimulationResponse): UISimulation
         );
       }
       if (va.aesthetic_tags?.length) {
-        editingFlat.push(`Aesthetic tags: ${va.aesthetic_tags.join(", ")}.`);
+        editingFlat.push(
+          `Aesthetic tags: ${va.aesthetic_tags.join(", ")}.`
+        );
       }
     }
 
     editingInsights = bucketizeFlatInsights(editingFlat);
-  }
-
-  // Simple retention curve placeholder – 10 bars, 0–1 values
-  const retentionCurve: number[] = [];
-  const baseRetention =
-    avgWatch && simulation.video_duration_seconds
-      ? Math.min(avgWatch / simulation.video_duration_seconds, 1)
-      : 0.7; // fallback
-
-  for (let i = 0; i < 10; i++) {
-    // decay slightly over time
-    retentionCurve.push(Math.max(baseRetention - i * 0.05, 0.1));
   }
 
   const generalFeedback: UIGeneralFeedback = {

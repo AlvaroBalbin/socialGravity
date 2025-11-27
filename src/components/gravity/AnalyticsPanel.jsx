@@ -7,6 +7,8 @@ import {
   UserPlus,
   Clock,
   TrendingUp,
+  Maximize2,
+  X,
 } from 'lucide-react';
 
 // RetentionCurve now expects values 0–1 (from generalFeedback.retentionCurve)
@@ -97,23 +99,65 @@ function normalizeInsights(raw) {
   return { what_worked: [], what_to_improve: [], key_changes: [] };
 }
 
+// Tiny helper to grab 2–3 ultra-short bullets across buckets
+function summarizeBuckets(buckets, maxItems = 3) {
+  const all = [
+    ...(buckets.what_worked || []),
+    ...(buckets.what_to_improve || []),
+    ...(buckets.key_changes || []),
+  ]
+    .map((s) => (s || '').trim())
+    .filter(Boolean);
+
+  return all.slice(0, maxItems);
+}
+
 function InsightGroup({ title, items }) {
   if (!items || !items.length) return null;
 
   return (
     <div>
-      <p className="text-[11px] font-semibold text-gray-800 mb-2">
-        {title}
-      </p>
+      <p className="text-[11px] font-semibold text-gray-800 mb-2">{title}</p>
       <div className="space-y-2 mb-3">
         {items.map((insight, index) => (
           <div key={index} className="flex gap-2">
             <span className="text-gray-300 mt-0.5">•</span>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              {insight}
-            </p>
+            <p className="text-xs text-gray-600 leading-relaxed">{insight}</p>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Simple center modal for expanded insights
+function InsightsModal({ title, buckets, onClose }) {
+  if (!buckets) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative bg-white rounded-2xl border border-gray-200 shadow-xl max-w-lg w-full mx-4 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100"
+          >
+            <X className="w-3.5 h-3.5 text-gray-500" />
+          </button>
+        </div>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          <InsightGroup title="What worked" items={buckets.what_worked} />
+          <InsightGroup
+            title="What to improve"
+            items={buckets.what_to_improve}
+          />
+          <InsightGroup title="Key changes" items={buckets.key_changes} />
+        </div>
       </div>
     </div>
   );
@@ -125,6 +169,9 @@ function InsightGroup({ title, items }) {
  *   - selectedPersona: UIPersonaSummary | null
  */
 export default function AnalyticsPanel({ simulation, selectedPersona }) {
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [showEditingModal, setShowEditingModal] = useState(false);
+
   if (!simulation) return null;
 
   const general = simulation.generalFeedback || {};
@@ -208,7 +255,6 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       ? '–'
       : `${predictedWatchTimeSeconds.toFixed(1)}s`;
 
-  // Very rough “percentage of video watched”
   const videoDuration = simulation.videoDurationSeconds || 0;
   const watchTimePercent =
     videoDuration && predictedWatchTimeSeconds != null
@@ -220,7 +266,6 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const retentionCurve = general.retentionCurve || [];
 
   // Qualitative:
-  // Persona view can still fall back to old qualitativeFeedback array
   const rawStorytelling = isPersonaView
     ? personaMetrics.storytellingInsights || personaMetrics.qualitativeFeedback
     : general.storytellingInsights;
@@ -230,18 +275,10 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const storytelling = normalizeInsights(rawStorytelling);
   const editing = normalizeInsights(rawEditing);
 
-  const personaName =
-    selectedPersona?.displayName ||
-    selectedPersona?.label ||
-    selectedPersona?.shortLabel ||
-    'Selected Persona';
+  const storySummary = summarizeBuckets(storytelling, 3);
+  const editingSummary = summarizeBuckets(editing, 3);
 
-  const personaId = selectedPersona?.id || selectedPersona?.personaId;
-
-  const personaTags = selectedPersona?.tags || [];
-
-  const personaMatch = pct(personaMetrics?.alignmentScore);
-
+  // Persona extra info for metrics (not layout-changing)
   const personaWatchTimeStr =
     personaMetrics?.watchTimeSeconds == null
       ? '–'
@@ -254,126 +291,144 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         )
       : null;
 
+  const personaMatch = pct(personaMetrics?.alignmentScore);
+
   return (
     <div className="w-full space-y-4">
-      {/* TOP CARD - Dynamic: Overall Audience Fit / Selected Persona */}
-      {!isPersonaView ? (
-        // DEFAULT STATE: Overall Audience Fit
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm w-full">
-          <div className="flex flex-col items-center">
-            {/* Circular Score */}
-            <div className="relative w-28 h-28 mb-4">
-              <svg
-                className="w-full h-full transform -rotate-90"
-                viewBox="0 0 100 100"
-              >
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  stroke="#f5f5f5"
-                  strokeWidth="6"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  stroke="#262626"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeDasharray={`${overallScore * 2.64} 264`}
-                  className="transition-all duration-700 ease-out"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-semibold text-gray-900">
-                  {overallScore}
-                </span>
-                <span className="text-[10px] text-gray-400 font-medium">
-                  /100
-                </span>
-              </div>
-            </div>
-            <p className="text-sm text-gray-500">Overall Audience Fit</p>
-          </div>
-        </div>
-      ) : (
-        // SELECTED STATE: Selected Persona Card
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
-          {/* Header */}
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium mb-2">
-            Selected Persona
-          </p>
-          <h2 className="text-lg font-semibold text-gray-900 mb-0.5">
-            {personaName}
-          </h2>
-          {personaId && (
-            <p className="text-xs text-gray-400 mb-4">{personaId}</p>
-          )}
-
-          {/* Tags */}
-          {personaTags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-5">
-              {personaTags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs text-gray-700 font-medium"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Divider */}
-          <div className="h-px bg-gray-100 mb-5" />
-
-          {/* Overall Match */}
-          <div className="bg-gray-50 rounded-xl p-4 mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-700 font-medium">
-                Overall Match
-              </span>
-              <div className="flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5 text-gray-500" />
-                <span className="text-sm font-semibold text-gray-900">
-                  {personaMatch != null ? `${personaMatch}%` : '–'}
-                </span>
-              </div>
-            </div>
-            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${personaMatch ?? 0}%` }}
+      {/* 1) OVERALL AUDIENCE FIT – always at the top */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm w-full">
+        <div className="flex flex-col items-center">
+          <div className="relative w-28 h-28 mb-4">
+            <svg
+              className="w-full h-full transform -rotate-90"
+              viewBox="0 0 100 100"
+            >
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke="#f5f5f5"
+                strokeWidth="6"
               />
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke="#262626"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeDasharray={`${overallScore * 2.64} 264`}
+                className="transition-all duration-700 ease-out"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-3xl font-semibold text-gray-900">
+                {overallScore}
+              </span>
+              <span className="text-[10px] text-gray-400 font-medium">
+                /100
+              </span>
             </div>
           </div>
+          <p className="text-sm text-gray-500">Overall Audience Fit</p>
 
-          {/* Watch Time */}
-          <div className="bg-gray-50 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
-                <span className="text-sm text-gray-700 font-medium">
-                  Watch Time
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-sm font-semibold text-gray-900">
-                  {personaWatchTimeStr}
-                </span>
-                <p className="text-[10px] text-gray-400">
-                  {personaWatchPercent != null ? `${personaWatchPercent}%` : ''}
+          {isPersonaView && (
+            <p className="text-[11px] text-gray-400 mt-2">
+              Persona match:{' '}
+              <span className="text-gray-800 font-medium">
+                {personaMatch != null ? `${personaMatch}%` : '–'}
+              </span>{' '}
+              • Watch:{' '}
+              <span className="text-gray-800 font-medium">
+                {personaWatchTimeStr}
+              </span>
+              {personaWatchPercent != null && (
+                <span className="text-gray-400"> ({personaWatchPercent}%)</span>
+              )}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* 2) STORYTELLING – summary + expand */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Storytelling Insights
+          </h3>
+          {(storySummary.length ||
+            storytelling.what_worked.length ||
+            storytelling.what_to_improve.length ||
+            storytelling.key_changes.length) && (
+            <button
+              onClick={() => setShowStoryModal(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50"
+            >
+              <Maximize2 className="w-3 h-3" />
+              View details
+            </button>
+          )}
+        </div>
+
+        {storySummary.length ? (
+          <div className="space-y-1.5">
+            {storySummary.map((insight, index) => (
+              <div key={index} className="flex gap-2">
+                <span className="text-gray-300 mt-0.5">•</span>
+                <p className="text-[11px] text-gray-600 leading-snug">
+                  {insight}
                 </p>
               </div>
-            </div>
+            ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-xs text-gray-400">
+            Storytelling feedback will appear here once analysis completes.
+          </p>
+        )}
+      </div>
 
-      {/* ENGAGEMENT PROBABILITIES */}
+      {/* 3) EDITING – summary + expand */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Editing Style Insights
+          </h3>
+          {(editingSummary.length ||
+            editing.what_worked.length ||
+            editing.what_to_improve.length ||
+            editing.key_changes.length) && (
+            <button
+              onClick={() => setShowEditingModal(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50"
+            >
+              <Maximize2 className="w-3 h-3" />
+              View details
+            </button>
+          )}
+        </div>
+
+        {editingSummary.length ? (
+          <div className="space-y-1.5">
+            {editingSummary.map((insight, index) => (
+              <div key={index} className="flex gap-2">
+                <span className="text-gray-300 mt-0.5">•</span>
+                <p className="text-[11px] text-gray-600 leading-snug">
+                  {insight}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400">
+            Visual and pacing insights will appear here once analysis completes.
+          </p>
+        )}
+      </div>
+
+      {/* 4) ENGAGEMENT PROBABILITIES */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
         <h3 className="text-sm font-semibold text-gray-900 mb-5">
           {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
@@ -391,7 +446,9 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
                       className="w-3.5 h-3.5 text-gray-400"
                       strokeWidth={1.5}
                     />
-                    <span className="text-xs text-gray-600">{item.label}</span>
+                    <span className="text-xs text-gray-600">
+                      {item.label}
+                    </span>
                   </div>
                   <span className="text-xs font-semibold text-gray-900 tabular-nums">
                     {item.value != null ? `${item.value}%` : '–'}
@@ -409,7 +466,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         </div>
       </div>
 
-      {/* ATTENTION METRICS */}
+      {/* 5) ATTENTION METRICS + RETENTION */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
         <h3 className="text-sm font-semibold text-gray-900 mb-5">
           Attention Metrics
@@ -453,69 +510,22 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         />
       </div>
 
-      {/* QUALITATIVE INSIGHTS */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-6 w-full">
-        {/* STORYTELLING */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">
-            Storytelling Insights
-          </h3>
+      {/* MODALS FOR EXPANDED INSIGHTS */}
+      {showStoryModal && (
+        <InsightsModal
+          title="Storytelling Insights – Full Breakdown"
+          buckets={storytelling}
+          onClose={() => setShowStoryModal(false)}
+        />
+      )}
 
-          {storytelling.what_worked.length ||
-          storytelling.what_to_improve.length ||
-          storytelling.key_changes.length ? (
-            <>
-              <InsightGroup
-                title="What worked"
-                items={storytelling.what_worked}
-              />
-              <InsightGroup
-                title="What to improve"
-                items={storytelling.what_to_improve}
-              />
-              <InsightGroup
-                title="Key changes"
-                items={storytelling.key_changes}
-              />
-            </>
-          ) : (
-            <p className="text-xs text-gray-400">
-              Storytelling feedback will appear here once analysis completes.
-            </p>
-          )}
-        </div>
-
-        {/* EDITING */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">
-            Editing Style Insights
-          </h3>
-
-          {editing.what_worked.length ||
-          editing.what_to_improve.length ||
-          editing.key_changes.length ? (
-            <>
-              <InsightGroup
-                title="What worked"
-                items={editing.what_worked}
-              />
-              <InsightGroup
-                title="What to improve"
-                items={editing.what_to_improve}
-              />
-              <InsightGroup
-                title="Key changes"
-                items={editing.key_changes}
-              />
-            </>
-          ) : (
-            <p className="text-xs text-gray-400">
-              Visual and pacing insights will appear here once analysis
-              completes.
-            </p>
-          )}
-        </div>
-      </div>
+      {showEditingModal && (
+        <InsightsModal
+          title="Editing Style Insights – Full Breakdown"
+          buckets={editing}
+          onClose={() => setShowEditingModal(false)}
+        />
+      )}
     </div>
   );
 }
