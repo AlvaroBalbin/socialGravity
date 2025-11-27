@@ -1,6 +1,8 @@
+// src/components/gravity/SimulationHeader.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check } from "lucide-react";
+import { Check, ChevronDown, ChevronUp } from "lucide-react";
+
 // Supabase + Auth
 import { supabase } from "../../supabaseClient";
 import { useAuth } from "../../lib/AuthContext";
@@ -31,9 +33,42 @@ export default function SimulationHeader({
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [showPrompt, setShowPrompt] = useState(false);
+
   const titleInputRef = useRef(null);
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const persistTitle = async (finalTitle) => {
+    const simulationId =
+      simulationData?.id || simulationData?.simulation_id;
+
+    if (!simulationId) {
+      console.error(
+        "SimulationHeader: no simulation id found when trying to save title",
+        simulationData
+      );
+      return;
+    }
+
+    // Only try to persist if logged in; otherwise just keep local
+    if (!isAuthenticated) return;
+
+    try {
+      const { error } = await supabase
+        .from("simulations")
+        .update({ title: finalTitle })
+        .eq("id", simulationId);
+
+      if (error) {
+        console.error("Failed to auto-save title", error);
+        return;
+      }
+
+      setIsSaved(true);
+    } catch (err) {
+      console.error("Unexpected error while auto-saving title", err);
+    }
+  };
 
   // Keep local title in sync when you navigate between simulations
   useEffect(() => {
@@ -60,13 +95,17 @@ export default function SimulationHeader({
     setIsEditingTitle(true);
   };
 
-  const commitTitle = (nextTitle) => {
+    const commitTitle = async (nextTitle) => {
     const trimmed = nextTitle.trim() || generateDefaultTitle();
     setTitle(trimmed);
     setIsEditingTitle(false);
-    setIsSaved(false); // editing = not saved
+    setIsSaved(false); // we’re editing, so mark as dirty
     onTitleChange?.(trimmed);
+
+    // Fire-and-forget DB update (if logged in)
+    await persistTitle(trimmed);
   };
+
 
   const handleTitleBlur = () => {
     commitTitle(title);
@@ -112,7 +151,7 @@ export default function SimulationHeader({
         .from("simulations")
         .update({
           user_id: user.id,
-          title: title, // 👈 persist the current title
+          title: title, // persist the current title
         })
         .eq("id", simulationId);
 
@@ -126,6 +165,7 @@ export default function SimulationHeader({
       setIsSaving(false);
       setIsSaved(true);
       onSave?.({ title });
+
       // Optional: redirect to profile after a short delay
       setTimeout(() => {
         navigate(createPageUrl("Profile"));
@@ -136,6 +176,10 @@ export default function SimulationHeader({
       alert("Something went wrong while saving.");
     }
   };
+
+  const createdAtLabel = simulationData?.createdAt
+    ? new Date(simulationData.createdAt).toLocaleString()
+    : null;
 
   return (
     <div className="sticky top-0 z-40 bg-white border-b border-gray-100">
@@ -186,6 +230,45 @@ export default function SimulationHeader({
           )}
         </button>
       </div>
+
+      {/* Section B: Meta + prompt toggle */}
+      <div className="px-6 pb-3 flex items-center justify-between text-xs text-gray-400">
+        <div className="flex items-center gap-3">
+          {createdAtLabel && <span>Created {createdAtLabel}</span>}
+          {createdAtLabel && (
+            <span className="h-1 w-1 rounded-full bg-gray-300" />
+          )}
+          <span>
+            Status: {simulationData?.status || "unknown"}
+          </span>
+        </div>
+
+        {simulationData?.audiencePrompt && (
+          <button
+            type="button"
+            onClick={() => setShowPrompt((p) => !p)}
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900"
+          >
+            {showPrompt
+              ? "Hide audience prompt"
+              : "Show audience prompt"}
+            {showPrompt ? (
+              <ChevronUp className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Section C: Audience prompt panel */}
+      {showPrompt && simulationData?.audiencePrompt && (
+        <div className="px-6 pb-4">
+          <div className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 whitespace-pre-wrap">
+            {simulationData.audiencePrompt}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

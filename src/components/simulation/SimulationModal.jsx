@@ -137,9 +137,10 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
     setIsRunning(true);
 
     try {
-      // 1) Create simulation
+      // 1) Create simulation (send both title + audience prompt)
       const startRes = await callEdge('start_simulation', {
         audience_prompt: audienceDescription,
+        title: simulationTitle,
       });
 
       const simulationId =
@@ -200,6 +201,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
       onComplete({
         simulationId,
         audienceDescription,
+        simulationTitle,
         videoFile,
         videoDurationSeconds,
         videoUrl: publicUrl,

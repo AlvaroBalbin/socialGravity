@@ -20,39 +20,43 @@ export default function TopPersonasRow({
     .slice(0, 4); // only show top 4 personas
 
   return (
-    <div className="flex items-center justify-center gap-6 py-5 border-t border-gray-100 bg-white">
+    <div className="flex items-center justify-center gap-6 py-5 px-6 border-t border-gray-100 bg-white">
       <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
         Top Personas
       </span>
-
       <div className="flex items-center gap-4 overflow-x-auto">
         {topPersonas.map((persona) => {
           const isSelected = selectedPersona?.id === persona.id;
 
           return (
             <button
-              key={persona.id}
-              onClick={() => onPersonaSelect(isSelected ? null : persona)}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-gray-50 ${
-                isSelected ? 'bg-gray-50 ring-1 ring-gray-200' : ''
-              }`}
-            >
-              {/* Mini dot */}
-              <div
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: getDotColor(persona.engagement) }}
-              />
+            key={persona.id}
+            onClick={() => onPersonaSelect(isSelected ? null : persona)}
+            className={`
+              w-full       /* full clickable width */
+              flex items-center gap-3
+              px-4 py-3    /* MUCH larger click area */
+              rounded-xl
+              transition-all duration-200
+              hover:bg-gray-100
+              ${isSelected ? "bg-gray-100 ring-1 ring-gray-300" : ""}
+            `}
+          >
+            {/* Dot */}
+            <div
+              className="w-3 h-3 rounded-full flex-shrink-0"
+              style={{ backgroundColor: getDotColor(persona.engagement) }}
+            />
 
-              {/* Name + score */}
-              <div className="flex flex-col items-start">
-                <span className="text-xs text-gray-700 font-medium leading-tight">
-                  {persona.displayName || persona.name || persona.shortLabel}
-                </span>
-                <span className="text-[10px] text-gray-400">
-                  {persona.engagement ?? 0}%
-                </span>
-              </div>
-            </button>
+            {/* Name + score */}
+            <div className="flex flex-col items-start">
+              <span className="text-sm text-gray-800 font-medium leading-tight">
+                {persona.displayName || persona.name || persona.shortLabel}
+              </span>
+              <span className="text-[11px] text-gray-500">{persona.engagement ?? 0}%</span>
+            </div>
+          </button>
+
           );
         })}
       </div>

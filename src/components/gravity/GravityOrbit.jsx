@@ -358,12 +358,17 @@ export default function GravityOrbit({
     let cardX = mouseX + offsetX;
     let cardY = mouseY + offsetY;
 
-    const margin = 16;
-    cardX = Math.max(margin, Math.min(cardX, rect.width - margin));
-    cardY = Math.max(64, Math.min(cardY, rect.height - margin));
+    // Safer margins so the card doesn't clip out of the orbit container
+    const marginX = 16;
+    const marginTop = 96;      // push cards a bit lower
+    const marginBottom = 40;   // keep some room at the bottom
+
+    cardX = Math.max(marginX, Math.min(cardX, rect.width - marginX));
+    cardY = Math.max(marginTop, Math.min(cardY, rect.height - marginBottom));
 
     setCardPosition({ x: cardX, y: cardY });
     setHoveredPersona(persona);
+
   };
 
   const handlePersonaClick = (persona) => {
