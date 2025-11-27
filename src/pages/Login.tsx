@@ -15,11 +15,8 @@ export default function Login() {
 
   // Read query params: ?redirect=...&claim_simulation=...
   const params = new URLSearchParams(location.search);
-  const redirectParam = params.get("redirect");           // encoded string or null
+  const redirectParam = params.get("redirect"); // encoded string or null
   const claimSimulationId = params.get("claim_simulation"); // simulation UUID or null
-
-  // Magic link should bring the user back to THIS URL (with the params)
-  const magicLinkRedirectTo = window.location.href;
 
   // After auth: claim the simulation (if any) and redirect
   useEffect(() => {
@@ -65,8 +62,19 @@ export default function Login() {
     setStatus(null);
 
     try {
-      // Send magic link that returns to THIS /login URL (with redirect + claim_simulation)
-      await signInWithEmail(email, magicLinkRedirectTo);
+      // Build the redirect URL *inside* the handler so it's safe on Vercel
+      let redirectUrl;
+
+      if (typeof window !== "undefined") {
+        // keep current path + query (?redirect=...&claim_simulation=...)
+        redirectUrl =
+          window.location.origin +
+          location.pathname +
+          location.search;
+      }
+
+      // Send magic link that returns to THIS /login URL (with params)
+      await signInWithEmail(email, redirectUrl);
       setStatus("Check your email for a login link.");
     } catch (err) {
       console.error(err);

@@ -11,6 +11,13 @@ import { supabase } from "../supabaseClient";
 
 const AuthContext = createContext(null);
 
+// Small helper so we never touch window during SSR / build
+function getDefaultRedirectTo() {
+  if (typeof window === "undefined") return undefined;
+  // Always send magic link back to /login on the current origin
+  return `${window.location.origin}/login`;
+}
+
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
@@ -70,14 +77,13 @@ export const AuthProvider = ({ children }) => {
         setUser(currentUser);
 
         if (currentUser) {
-          // don’t block isLoading on this
+          // fire and forget – don’t block loading
           ensureProfile(currentUser);
         }
       } catch (err) {
         console.error("init auth error:", err);
       } finally {
         if (!ignore) {
-          // 🔥 guarantees the spinner goes away
           setIsLoading(false);
         }
       }
@@ -87,8 +93,8 @@ export const AuthProvider = ({ children }) => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const newSession = session ?? null;
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      const newSession = nextSession ?? null;
       const newUser = newSession?.user ?? null;
 
       setSession(newSession);
@@ -113,13 +119,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // 🔑 now accepts a custom redirectTo URL
+  /**
+   * Magic-link sign in.
+   *
+   * redirectTo: optional full URL – if omitted we send the user back to
+   * `${origin}/login`, which works for both localhost and Vercel.
+   */
   const signInWithEmail = useCallback(async (email, redirectTo) => {
+    const emailRedirectTo = redirectTo || getDefaultRedirectTo();
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        // when not provided, fallback to origin (old behaviour)
-        emailRedirectTo: redirectTo || window.location.origin,
+        // If emailRedirectTo is undefined, Supabase will fall back to Site URL.
+        emailRedirectTo,
       },
     });
 
