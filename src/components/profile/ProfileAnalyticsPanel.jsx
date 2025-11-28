@@ -1,96 +1,158 @@
 // src/components/profile/ProfileAnalyticsPanel.jsx
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
 import { useAuth } from "../../lib/AuthContext";
 
+const CACHE_KEY_PREFIX = "profileAnalytics:";
+
 export default function ProfileAnalyticsPanel() {
   const { user } = useAuth();
-  const [loadingInitial, setLoadingInitial] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [payload, setPayload] = useState(null);
-  const [error, setError] = useState(null); // string | null
+  const [loading, setLoading] = useState(false);      // only for manual refresh
+  const [payload, setPayload] = useState(null);       // last good result
+  const [error, setError] = useState(null);           // string | null
+
+  const cacheKey = user ? `${CACHE_KEY_PREFIX}${user.id}` : null;
+
+  // Load last cached payload on mount / user change
+  useEffect(() => {
+    if (!cacheKey) return;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setPayload(parsed);
+        setError(parsed?.error ?? null);
+      }
+    } catch (e) {
+      console.warn("Failed to read cached analytics:", e);
+    }
+  }, [cacheKey]);
 
   const loadInsights = useCallback(
-    async (opts = { initial: false }) => {
-      if (!user) return;
+    async () => {
+      if (!user || loading) return;
 
-      if (opts.initial) {
-        setLoadingInitial(true);
-        setPayload(null);
-      } else {
-        setRefreshing(true);
-      }
+      setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase.functions.invoke(
+      const { data, error: fnError } = await supabase.functions.invoke(
         "get_global_insights",
         {
           body: { user_id: user.id },
         }
       );
 
-      if (error) {
-        console.error("get_global_insights error:", error, data);
-        // show useful error code if backend sent one
-        setError(data?.error || error.message || "UNKNOWN_ERROR");
-        if (opts.initial) {
-          setPayload(null);
-        }
+      if (fnError) {
+        console.error("get_global_insights error:", fnError, data);
+        const errMsg = data?.error || fnError.message || "UNKNOWN_ERROR";
+        setError(errMsg);
+        // keep old payload so UI doesn’t flash empty
       } else {
-        if (data?.error === "NOT_ENOUGH_SIMULATIONS") {
-          // treat as a special non-fatal state
+        // 🔹 ADD A TIMESTAMP ON THE CLIENT
+        const stamped = {
+          ...data,
+          last_refreshed_at: new Date().toISOString(),
+        };
+
+        if (stamped?.error === "NOT_ENOUGH_SIMULATIONS") {
           setError("NOT_ENOUGH_SIMULATIONS");
-          setPayload(data);
+          setPayload(stamped);
         } else {
-          setPayload(data);
+          setPayload(stamped);
           setError(null);
+        }
+
+        // Cache the latest payload so we can restore it on reload
+        if (cacheKey) {
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(stamped));
+          } catch (e) {
+            console.warn("Failed to cache analytics:", e);
+          }
         }
       }
 
-      if (opts.initial) setLoadingInitial(false);
-      else setRefreshing(false);
+      setLoading(false);
     },
-    [user?.id]
+    [user, loading, cacheKey]
   );
-
-  useEffect(() => {
-    if (!user) return;
-    loadInsights({ initial: true });
-  }, [user?.id, loadInsights]);
 
   const metrics = payload?.metrics;
   const insights = payload?.insights;
+  const lastUpdated = payload?.last_refreshed_at;
 
   const formatPct = (x) =>
     x === null || x === undefined ? "–" : `${Math.round(x * 100)}%`;
 
-  const showSkeleton = loadingInitial && !payload;
+  // --- "time since last refresh" helper -----------------------------
+  const formatSince = (timestamp) => {
+    if (!timestamp) return null;
+    const updatedAt = new Date(timestamp).getTime();
+    const now = Date.now();
+    if (Number.isNaN(updatedAt)) return null;
+
+    const diffMs = now - updatedAt;
+    const diffSec = Math.floor(diffMs / 1000);
+
+    if (diffSec < 30) return "just now";
+    if (diffSec < 60) return `${diffSec} sec${diffSec === 1 ? "" : "s"} ago`;
+
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60)
+      return `${diffMin} min${diffMin === 1 ? "" : "s"} ago`;
+
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24)
+      return `${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
+
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
+  };
+
+  const sinceLabel = lastUpdated ? formatSince(lastUpdated) : null;
+  const showSkeleton = loading && !payload; // only show skeleton on very first fetch
 
   return (
     <aside
-    className="
-      border-l border-gray-100 pl-6
-      sticky top-24
-      max-h-[calc(100vh-7rem)]
-      overflow-y-auto
-      pr-2
-    "
-  >
+      className="
+        border-l border-gray-100 pl-6
+        sticky top-24
+        max-h-[calc(100vh-9rem)]
+        overflow-y-auto
+        pr-2
+      "
+    >
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
           Analytics
         </h2>
 
-        <button
-          type="button"
-          onClick={() => loadInsights({ initial: false })}
-          disabled={refreshing || loadingInitial}
-          className="text-[10px] px-3 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 disabled:cursor-not-allowed transition"
-        >
-          {refreshing || loadingInitial ? "Refreshing…" : "Refresh"}
-        </button>
+        <div className="flex items-center gap-2">
+          {sinceLabel && (
+            <span className="text-[10px] text-gray-400">
+              Updated {sinceLabel}
+            </span>
+          )}
+
+          <button
+            type="button"
+            onClick={loadInsights}
+            disabled={loading || !user}
+            className="text-[10px] px-3 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 disabled:cursor-not-allowed transition"
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </div>
+
+      {/* Initial idle message if nothing loaded yet */}
+      {!payload && !error && !showSkeleton && (
+        <div className="mb-3 text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+          Click <span className="font-medium text-emerald-700">Refresh</span> to
+          generate global insights from your simulations.
+        </div>
+      )}
 
       {/* Error hint (except "not enough sims") */}
       {!showSkeleton &&

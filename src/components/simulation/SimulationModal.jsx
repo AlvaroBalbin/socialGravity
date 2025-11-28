@@ -1,15 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, X } from 'lucide-react';
-import { callEdge } from '@/lib/api';
-import { supabase } from "../../supabaseClient";
+// src/components/SimulationModal.jsx
+import React, { useState, useRef, useEffect } from "react";
+import { Upload, X } from "lucide-react";
+import { callEdge } from "@/lib/api";
+import { uploadAndConvertVideoForSimulation } from "@/lib/uploadAndConvertVideoForSimulation";
 
 export default function SimulationModal({ isOpen, onClose, onComplete }) {
   const [step, setStep] = useState(1);
-  const [simulationTitle, setSimulationTitle] = useState(''); 
-  const [audienceDescription, setAudienceDescription] = useState('');
+  const [simulationTitle, setSimulationTitle] = useState("");
+  const [audienceDescription, setAudienceDescription] = useState("");
   const [videoFile, setVideoFile] = useState(null);
-  const [fileName, setFileName] = useState('');
-  const [error, setError] = useState('');
+  const [fileName, setFileName] = useState("");
+  const [error, setError] = useState("");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState(null);
@@ -19,13 +20,13 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   // Disable body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
 
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [isOpen]);
 
@@ -33,11 +34,11 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      setSimulationTitle('');
-      setAudienceDescription('');
+      setSimulationTitle("");
+      setAudienceDescription("");
       setVideoFile(null);
-      setFileName('');
-      setError('');
+      setFileName("");
+      setError("");
       setIsTransitioning(false);
       setIsRunning(false);
       setVideoDurationSeconds(null);
@@ -45,24 +46,24 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   }, [isOpen]);
 
   const handleNext = () => {
-  if (!simulationTitle.trim()) {
-    setError('Please enter a title for this simulation');
-    return;
-  }
+    if (!simulationTitle.trim()) {
+      setError("Please enter a title for this simulation");
+      return;
+    }
 
-  if (!audienceDescription.trim()) {
-    setError('Please describe your target audience');
-    return;
-  }
+    if (!audienceDescription.trim()) {
+      setError("Please describe your target audience");
+      return;
+    }
 
-  setError('');
-  setIsTransitioning(true);
+    setError("");
+    setIsTransitioning(true);
 
-  setTimeout(() => {
-    setStep(2);
-    setIsTransitioning(false);
-  }, 200);
-};
+    setTimeout(() => {
+      setStep(2);
+      setIsTransitioning(false);
+    }, 200);
+  };
 
   const handleBack = () => {
     setIsTransitioning(true);
@@ -79,26 +80,26 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
 
     // Validate file type
     if (
-      !file.type.includes('video/mp4') &&
-      !file.type.includes('video/quicktime')
+      !file.type.includes("video/mp4") &&
+      !file.type.includes("video/quicktime")
     ) {
-      setError('Please upload an MP4 or MOV file');
+      setError("Please upload an MP4 or MOV file");
       return;
     }
 
     // Validate duration
-    const video = document.createElement('video');
-    video.preload = 'metadata';
+    const video = document.createElement("video");
+    video.preload = "metadata";
 
     video.onloadedmetadata = () => {
       window.URL.revokeObjectURL(video.src);
 
       if (video.duration > 60) {
-        setError('Video must be 60 seconds or less');
+        setError("Video must be 60 seconds or less");
         return;
       }
 
-      setError('');
+      setError("");
       setVideoFile(file);
       setFileName(file.name);
       setVideoDurationSeconds(video.duration);
@@ -119,26 +120,26 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
 
   const handleBeginSimulation = async () => {
     if (!audienceDescription.trim()) {
-      setError('Please describe your target audience');
+      setError("Please describe your target audience");
       return;
     }
 
     if (!videoFile) {
-      setError('Please upload a video');
+      setError("Please upload a video");
       return;
     }
 
     if (!videoDurationSeconds) {
-      setError('Unable to read video duration. Try re-uploading the file.');
+      setError("Unable to read video duration. Try re-uploading the file.");
       return;
     }
 
-    setError('');
+    setError("");
     setIsRunning(true);
 
     try {
       // 1) Create simulation (send both title + audience prompt)
-      const startRes = await callEdge('start_simulation', {
+      const startRes = await callEdge("start_simulation", {
         audience_prompt: audienceDescription,
         title: simulationTitle,
       });
@@ -147,53 +148,41 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
         startRes.simulation_id || startRes.simulationId || startRes.id;
 
       if (!simulationId) {
-        throw new Error('start_simulation did not return simulation_id');
+        throw new Error("start_simulation did not return simulation_id");
       }
 
-      // 2) Upload video to Supabase Storage (videos bucket)
-      const ext = videoFile.name.split('.').pop() || 'mp4';
-      const path = `${simulationId}/${Date.now()}.${ext}`;
+      // 2) Upload + convert video server-side (MOV → MP4)
+      //    This handles Storage upload, videos table insert, and polling
+      //    until the converted MP4 is ready, then returns the public MP4 URL.
+      const publicUrl = await uploadAndConvertVideoForSimulation(
+        simulationId,
+        videoFile
+      );
 
-      const { error: uploadError } = await supabase.storage
-        .from('videos')
-        .upload(path, videoFile, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        setError(uploadError.message || 'Failed to upload video to storage');
-        setIsRunning(false);
-        return;
-      }
-
-      const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/videos/${path}`;
-
-      // 3) Attach video URL + duration
-      await callEdge('set_video_url', {
+      // 3) Attach video URL + duration to the simulation
+      await callEdge("set_video_url", {
         simulation_id: simulationId,
         video_url: publicUrl,
         video_duration_seconds: Math.round(videoDurationSeconds),
       });
 
       // 4) Transcribe video
-      await callEdge('transcribe_video', {
+      await callEdge("transcribe_video", {
         simulation_id: simulationId,
       });
 
       // 5) Generate personas
-      await callEdge('generate_personas', {
+      await callEdge("generate_personas", {
         simulation_id: simulationId,
       });
 
       // 6) Analyze simulation (persona reactions / metrics)
-      await callEdge('analyze_simulation', {
+      await callEdge("analyze_simulation", {
         simulation_id: simulationId,
       });
 
       // 7) Start visual analysis (frames + visual summary)
-      await callEdge('start_visual_analysis', {
+      await callEdge("start_visual_analysis", {
         simulation_id: simulationId,
       });
 
@@ -204,12 +193,12 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
         simulationTitle,
         videoFile,
         videoDurationSeconds,
-        videoUrl: publicUrl,
+        videoUrl: publicUrl, // final MP4 URL
       });
     } catch (err) {
-      console.error('Error running simulation pipeline', err);
+      console.error("Error running simulation pipeline", err);
       setError(
-        err?.message || 'Something went wrong while running the simulation.'
+        err?.message || "Something went wrong while running the simulation."
       );
     } finally {
       setIsRunning(false);
@@ -221,7 +210,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ animation: 'modalFadeIn 0.5s ease-out' }}
+      style={{ animation: "modalFadeIn 0.5s ease-out" }}
     >
       {/* Backdrop */}
       <div
@@ -234,8 +223,8 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
         className="relative bg-white rounded-[20px] border border-gray-100 p-8 w-full max-w-[500px] mx-4"
         style={{
           boxShadow:
-            '0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
-          animation: 'cardSlideUp 0.5s ease-out',
+            "0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)",
+          animation: "cardSlideUp 0.5s ease-out",
         }}
       >
         {/* Close button */}
@@ -253,68 +242,68 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
           style={{ opacity: isTransitioning ? 0 : 1 }}
         >
           {step === 1 && (
-  <div>
-    <h2 className="text-lg font-medium text-gray-900 mb-2">
-      Name your simulation & audience
-    </h2>
+            <div>
+              <h2 className="text-lg font-medium text-gray-900 mb-2">
+                Name your simulation &amp; audience
+              </h2>
 
-    <p className="text-sm text-gray-500 font-light mb-6">
-      Give this simulation a clear title and describe who the content is for.
-    </p>
+              <p className="text-sm text-gray-500 font-light mb-6">
+                Give this simulation a clear title and describe who the content
+                is for.
+              </p>
 
-    {/* Simulation Title */}
-    <div className="mb-4">
-      <label className="block text-xs font-medium text-gray-500 mb-1">
-        Simulation title
-      </label>
+              {/* Simulation Title */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Simulation title
+                </label>
 
-      <input
-        type="text"
-        value={simulationTitle}
-        onChange={(e) => setSimulationTitle(e.target.value)}
-        placeholder="e.g. Hook Test — Skincare Gen-Z TikTok"
-        className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-300 transition-colors"
-            />
-          </div>
+                <input
+                  type="text"
+                  value={simulationTitle}
+                  onChange={(e) => setSimulationTitle(e.target.value)}
+                  placeholder="e.g. Hook Test — Skincare Gen-Z TikTok"
+                  className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-300 transition-colors"
+                />
+              </div>
 
-          {/* Audience Description */}
-          <label className="block text-xs font-medium text-gray-500 mb-1">
-            Audience description
-          </label>
+              {/* Audience Description */}
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Audience description
+              </label>
 
-          <textarea
-            value={audienceDescription}
-            onChange={(e) => setAudienceDescription(e.target.value)}
-            placeholder="Example: Gen Z viewers who like skincare, quiet luxury, aesthetics and thoughtful product reviews."
-            className="w-full h-32 p-4 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-gray-300 transition-colors"
-          />
+              <textarea
+                value={audienceDescription}
+                onChange={(e) => setAudienceDescription(e.target.value)}
+                placeholder="Example: Gen Z viewers who like skincare, quiet luxury, aesthetics and thoughtful product reviews."
+                className="w-full h-32 p-4 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-gray-300 transition-colors"
+              />
 
-          {/* Error */}
-          {error && (
-            <p className="text-xs text-red-500 mt-2">{error}</p>
+              {/* Error */}
+              {error && (
+                <p className="text-xs text-red-500 mt-2">{error}</p>
+              )}
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={onClose}
+                  className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                  disabled={isRunning}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleNext}
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
+                  disabled={isRunning}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
-
-          {/* Buttons */}
-          <div className="flex justify-end gap-3 mt-6">
-            <button
-              onClick={onClose}
-              className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-              disabled={isRunning}
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={handleNext}
-              className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors"
-              disabled={isRunning}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
-
 
           {step === 2 && (
             <div>
@@ -379,7 +368,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                   className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-full hover:bg-gray-800 transition-colors disabled:opacity-60"
                   disabled={isRunning}
                 >
-                  {isRunning ? 'Running simulation…' : 'Begin Simulation'}
+                  {isRunning ? "Running simulation…" : "Begin Simulation"}
                 </button>
               </div>
             </div>
