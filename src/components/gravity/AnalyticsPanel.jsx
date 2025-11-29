@@ -119,13 +119,14 @@ function InsightGroup({ title, items }) {
     <div>
       <p className="text-[11px] font-semibold text-gray-800 mb-2">{title}</p>
       <div className="space-y-2 mb-3">
-        {items.map((insight, index) => (
-          <div key={index} className="flex gap-2">
-            <span className="text-gray-300 mt-0.5">•</span>
-            <p className="text-xs text-gray-600 leading-relaxed">{insight}</p>
-          </div>
-        ))}
-      </div>
+  {items.map((insight, index) => (
+    <div key={index} className="flex items-start gap-2">
+      <span className="text-gray-300 text-xs leading-none">•</span>
+      <p className="text-xs text-gray-600 leading-relaxed">{insight}</p>
+    </div>
+  ))}
+</div>
+
     </div>
   );
 }
@@ -188,6 +189,17 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
     v == null || Number.isNaN(v) ? null : Math.round(v * 100);
 
   const overallScore = simulation.audienceFitScore ?? 0;
+
+  // Persona match / fit score (0–100)
+  const personaMatch = pct(personaMetrics?.alignmentScore);
+  const dialScore =
+    isPersonaView && personaMatch != null ? personaMatch : overallScore;
+
+  const selectedPersonaLabel =
+    selectedPersona?.label ||
+    selectedPersona?.name ||
+    selectedPersona?.displayName ||
+    'Selected persona';
 
   // Engagement data source: persona vs general
   const engagementSource = isPersonaView ? personaMetrics : general;
@@ -291,11 +303,9 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         )
       : null;
 
-  const personaMatch = pct(personaMetrics?.alignmentScore);
-
   return (
     <div className="w-full space-y-4">
-      {/* 1) OVERALL AUDIENCE FIT – always at the top */}
+      {/* 1) OVERALL / PERSONA FIT – top card */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm w-full">
         <div className="flex flex-col items-center">
           <div className="relative w-28 h-28 mb-4">
@@ -319,20 +329,23 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
                 stroke="#262626"
                 strokeWidth="6"
                 strokeLinecap="round"
-                strokeDasharray={`${overallScore * 2.64} 264`}
+                strokeDasharray={`${dialScore * 2.64} 264`}
                 className="transition-all duration-700 ease-out"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-3xl font-semibold text-gray-900">
-                {overallScore}
+                {dialScore}
               </span>
               <span className="text-[10px] text-gray-400 font-medium">
                 /100
               </span>
             </div>
           </div>
-          <p className="text-sm text-gray-500">Overall Audience Fit</p>
+
+          <p className="text-sm text-gray-500">
+            {isPersonaView ? `${selectedPersonaLabel} Fit` : 'Overall Audience Fit'}
+          </p>
 
           {isPersonaView && (
             <p className="text-[11px] text-gray-400 mt-2">
@@ -375,13 +388,14 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         {storySummary.length ? (
           <div className="space-y-1.5">
             {storySummary.map((insight, index) => (
-              <div key={index} className="flex gap-2">
-                <span className="text-gray-300 mt-0.5">•</span>
-                <p className="text-[11px] text-gray-600 leading-snug">
-                  {insight}
-                </p>
-              </div>
-            ))}
+            <div key={index} className="flex items-start gap-2">
+              <span className="text-gray-300 text-xs leading-none">•</span>
+              <p className="text-[11px] text-gray-600 leading-snug">
+                {insight}
+              </p>
+            </div>
+          ))}
+
           </div>
         ) : (
           <p className="text-xs text-gray-400">
@@ -413,13 +427,14 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         {editingSummary.length ? (
           <div className="space-y-1.5">
             {editingSummary.map((insight, index) => (
-              <div key={index} className="flex gap-2">
-                <span className="text-gray-300 mt-0.5">•</span>
-                <p className="text-[11px] text-gray-600 leading-snug">
-                  {insight}
-                </p>
-              </div>
-            ))}
+            <div key={index} className="flex items-start gap-2">
+              <span className="text-gray-300 text-xs leading-none">•</span>
+              <p className="text-[11px] text-gray-600 leading-snug">
+                {insight}
+              </p>
+            </div>
+          ))}
+
           </div>
         ) : (
           <p className="text-xs text-gray-400">
