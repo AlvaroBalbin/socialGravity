@@ -264,7 +264,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
               </p>
 
               <p className="text-xs text-gray-500 text-center max-w-xs">
-                We’re analysing your video and preparing your simulation. This shouldn’t take long.
+                We’re analysing your video and preparing your simulation. This might take up to 2 minutes.
               </p>
             </div>
           ) : (
