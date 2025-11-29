@@ -4,8 +4,8 @@ import { TrendingUp, Clock, MessageSquare } from 'lucide-react';
 const cards = [
   {
     icon: TrendingUp,
-    title: 'Overall Match',
-    description: 'A clean score that shows how well the video fits each persona.',
+    title: "Overall Match",
+    description: "A clean score that shows how well the video fits each persona.",
     visual: (
       <div className="flex items-center gap-3 mt-4">
         <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -17,8 +17,9 @@ const cards = [
   },
   {
     icon: Clock,
-    title: 'Attention Metrics',
-    description: 'Predicted watch time, swipe probability, retention curve — simplified preview.',
+    title: "Attention Metrics",
+    description:
+      "Predicted watch time, swipe probability, retention curve - simplified preview.",
     visual: (
       <div className="flex items-end gap-0.5 mt-4 h-6">
         {[85, 78, 70, 62, 55, 48, 42, 35].map((v, i) => (
@@ -33,17 +34,21 @@ const cards = [
   },
   {
     icon: MessageSquare,
-    title: 'Qualitative Insights',
-    description: 'Clear, human-like explanations of what worked and what didn\'t.',
+    title: "Qualitative Insights",
+    description:
+      "Clear, human-like explanations of what worked and what didn’t.",
     visual: (
-      <div className="mt-4 space-y-1.5">
-        <div className="h-1.5 bg-gray-100 rounded-full w-full" />
-        <div className="h-1.5 bg-gray-100 rounded-full w-4/5" />
-        <div className="h-1.5 bg-gray-100 rounded-full w-3/5" />
-      </div>
-    ),
+  <div className="mt-4 space-y-2">
+    <div className="h-1.5 rounded-full w-11/12 bg-gradient-to-r from-gray-300 to-gray-200" />
+    <div className="h-1.5 rounded-full w-9/12 bg-gradient-to-r from-gray-200 to-gray-100" />
+    <div className="h-1.5 rounded-full w-7/12 bg-gradient-to-r from-gray-200 to-gray-100" />
+  </div>
+)
+
+,
   },
 ];
+
 
 function useInView() {
   const ref = useRef(null);

@@ -62,20 +62,9 @@ function ShowcaseOrbit() {
       <div className="absolute inset-[32%] rounded-full border border-gray-300" style={{ opacity: 0.06 }} />
       <div className="absolute inset-[42%] rounded-full border border-gray-300" style={{ opacity: 0.05 }} />
       
-      {/* Central Video Icon - fixed and still */}
-      <div 
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-xl flex items-center justify-center z-10"
-        style={{
-          border: '1px solid #DDE1E5',
-          boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.06), 0 0 24px rgba(0,0,0,0.04)',
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path 
-            d="M8 5.14v13.72a1 1 0 001.5.86l11-6.86a1 1 0 000-1.72l-11-6.86a1 1 0 00-1.5.86z" 
-            fill="#9CA3AF"
-          />
-        </svg>
+      {/* Central Black Hole instead of play icon */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+        <div className="bh-core" />
       </div>
       
       {/* Orbiting Dots */}
@@ -139,6 +128,27 @@ function ShowcaseOrbit() {
       })}
       
       <style>{`
+        /* Black hole core – same language as the main orbit */
+        .bh-core {
+          width: 120px;
+          height: 120px;
+          border-radius: 9999px;
+          background: #000;
+          box-shadow: 0 0 38px rgba(0,0,0,0.6);
+          animation: bh-core-pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes bh-core-pulse {
+          0%, 100% {
+            transform: scale(0.96);
+            box-shadow: 0 0 32px rgba(0,0,0,0.55);
+          }
+          50% {
+            transform: scale(1.04);
+            box-shadow: 0 0 46px rgba(0,0,0,0.8);
+          }
+        }
+
         @keyframes orbitShowcase {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
@@ -205,11 +215,11 @@ export default function OrbitShowcaseSection() {
               transition: 'opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s',
             }}
           >
-                      Every dot is an AI persona.<br />
-                      The closer they drift, the more engaged they are.<br />
-                      The darker they appear, the more they care.<br />
-                      The orbit visualizes your content's pull.
-                    </p>
+            Every dot is an AI persona.<br />
+            The closer they drift, the more engaged they are.<br />
+            The darker they appear, the more they care.<br />
+            The orbit visualizes your content&apos;s pull.
+          </p>
         </div>
 
         {/* Visual */}

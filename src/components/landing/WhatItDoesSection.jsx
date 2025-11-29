@@ -15,7 +15,7 @@ const features = [
   {
     icon: Lightbulb,
     title: 'Understand',
-    description: 'See what resonates — and why.',
+    description: 'See what resonates and why.',
   },
 ];
 

@@ -202,8 +202,7 @@ export default function HeroSection({ onRunSimulation }) {
             opacity: 0,
           }}
         >
-          AI simulates how different personas react to your content — so creators
-          can predict performance with clarity, not guesswork.
+          AI simulates how different personas react to your content so creators can predict performance with clarity, not guesswork.
         </p>
 
         {/* CTAs */}
