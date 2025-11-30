@@ -202,7 +202,8 @@ export default function HeroSection({ onRunSimulation }) {
             opacity: 0,
           }}
         >
-          AI simulates how different personas react to your content so creators can predict performance with clarity, not guesswork.
+          AI simulates how different personas react to your content so creators 
+          can predict performance with clarity, not guesswork.
         </p>
 
         {/* CTAs */}
@@ -223,11 +224,19 @@ export default function HeroSection({ onRunSimulation }) {
           </button>
 
           <a
-            href="#what-it-does"
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            Learn More
-          </a>
+          href="#what-it-does"
+          onClick={(e) => {
+            e.preventDefault();
+            document
+              .getElementById("what-it-does")
+              ?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          Learn More
+        </a>
+
+
         </div>
 
         <style>{`

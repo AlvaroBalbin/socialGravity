@@ -20,20 +20,18 @@ export default function Profile() {
   const [simulations, setSimulations] = useState([]);
   const [loadingSims, setLoadingSims] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] = useState(null); // simulation being deleted
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading } = useAuth();
 
-  // If auth is resolved and user is not logged in → send to login
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/login");
     }
   }, [isLoading, isAuthenticated, navigate]);
 
-  // Fetch simulations for this user
   useEffect(() => {
     if (!user) {
       setSimulations([]);
@@ -42,7 +40,6 @@ export default function Profile() {
     }
 
     const fetchSimulations = async () => {
-      console.log("🔍 Fetching sims for user", user.id);
       setLoadingSims(true);
 
       try {
@@ -56,11 +53,10 @@ export default function Profile() {
           console.error("❌ Failed to load simulations", error);
           setSimulations([]);
         } else {
-          console.log("✅ Loaded simulations:", data);
           setSimulations(data || []);
         }
       } catch (err) {
-        console.error("❌ Exception while loading simulations", err);
+        console.error(err);
         setSimulations([]);
       } finally {
         setLoadingSims(false);
@@ -70,16 +66,11 @@ export default function Profile() {
     fetchSimulations();
   }, [user]);
 
-  // After full pipeline
   const handleSimulationComplete = (data) => {
     setShowModal(false);
 
     const { simulationId } = data || {};
-
-    if (!simulationId) {
-      console.error("❌ Simulation complete callback missing simulationId", data);
-      return;
-    }
+    if (!simulationId) return;
 
     navigate(createPageUrl("SimulationResults") + `?id=${simulationId}`);
   };
@@ -103,8 +94,7 @@ export default function Profile() {
       .eq("id", deleteTarget.id);
 
     if (error) {
-      console.error("❌ Failed to delete simulation", error);
-      alert("Couldn't delete simulation. Try again.");
+      alert("Couldn't delete simulation.");
       setDeleting(false);
       return;
     }
@@ -115,20 +105,17 @@ export default function Profile() {
   };
 
   const handleCancelDelete = () => {
-    if (deleting) return;
-    setDeleteTarget(null);
+    if (!deleting) setDeleteTarget(null);
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Simulation Wizard Modal */}
+    <div className="min-h-screen bg-white flex flex-col">
       <SimulationModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         onComplete={handleSimulationComplete}
       />
 
-      {/* Delete confirmation dialog */}
       <DeleteSimulationDialog
         open={!!deleteTarget}
         simulationTitle={
@@ -141,10 +128,10 @@ export default function Profile() {
         loading={deleting}
       />
 
-      {/* Header UI */}
       <ProfileHeader />
 
-      <main className="max-w-6xl mx-auto px-6 pb-16">
+      {/* slightly smaller bottom padding so cards sit nearer viewport bottom */}
+      <main className="max-w-6xl mx-auto px-6 pb-0 w-full flex-1">
         <section
           className="mt-4"
           style={{ animation: "sectionFadeIn 0.5s ease-out 0.2s both" }}
@@ -163,29 +150,48 @@ export default function Profile() {
           </div>
 
           <div className="flex items-start gap-8">
-            {/* LEFT: simulations list */}
-            <div className="flex-1">
-              {loadingSims ? (
-                <div className="flex items-center justify-center py-16">
-                  <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+            {/* LEFT LIST */}
+            <div className="flex-1 relative mb-2">
+              {/* fixed-height card, internal scroll */}
+              <div
+                className="
+                  h-[calc(100vh-220px)]
+                  rounded-xl
+                  bg-white
+                  border border-gray-100
+                  shadow-[0_4px_14px_rgba(0,0,0,0.04)]
+                  flex flex-col
+                  overflow-hidden
+                "
+              >
+                <div className="flex-1 overflow-y-auto premium-scroll px-4 py-3">
+                  {loadingSims ? (
+                    <div className="flex items-center justify-center py-16">
+                      <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+                    </div>
+                  ) : simulations.length === 0 ? (
+                    <EmptyState onRunSimulation={() => setShowModal(true)} />
+                  ) : (
+                    <div className="space-y-3">
+                      {simulations.map((sim) => (
+                        <SimulationRow
+                          key={sim.id}
+                          simulation={sim}
+                          onOpen={() => handleOpenSimulation(sim.id)}
+                          onDelete={() => handleAskDeleteSimulation(sim)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ) : simulations.length === 0 ? (
-                <EmptyState onRunSimulation={() => setShowModal(true)} />
-              ) : (
-                <div className="space-y-3">
-                  {simulations.map((sim) => (
-                    <SimulationRow
-                      key={sim.id}
-                      simulation={sim}
-                      onOpen={() => handleOpenSimulation(sim.id)}
-                      onDelete={() => handleAskDeleteSimulation(sim)}
-                    />
-                  ))}
-                </div>
-              )}
+              </div>
+
+              {/* Top + bottom gradient fades over the card */}
+              <div className="pointer-events-none absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent rounded-t-xl" />
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent rounded-b-xl" />
             </div>
 
-            {/* RIGHT: analytics */}
+            {/* RIGHT ANALYTICS */}
             <div className="hidden lg:block w-80 shrink-0">
               <ProfileAnalyticsPanel />
             </div>
@@ -193,16 +199,40 @@ export default function Profile() {
         </section>
       </main>
 
+      {/* Animations + Ghost Scrollbar CSS */}
       <style>{`
         @keyframes sectionFadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(4px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* =============== GHOST SCROLLBAR =============== */
+
+        .premium-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: transparent transparent;
+        }
+
+        .premium-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .premium-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .premium-scroll::-webkit-scrollbar-thumb {
+          background: transparent;
+          border-radius: 999px;
+          transition: background 0.25s ease;
+        }
+
+        .premium-scroll:hover::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.18);
+        }
+
+        .premium-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.28);
         }
       `}</style>
     </div>
