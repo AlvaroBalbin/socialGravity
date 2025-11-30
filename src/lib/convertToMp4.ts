@@ -35,7 +35,7 @@ function canUseFfmpeg(): boolean {
 
 /**
  * If the file is .mov and the environment supports ffmpeg.wasm,
- * convert it to MP4 (H.264 + AAC).
+ * convert it to MP4 (H.264 + AAC) with stable audio settings.
  * Otherwise return the original file unchanged.
  */
 export async function convertToMp4IfNeeded(file: File): Promise<File> {
@@ -69,17 +69,31 @@ export async function convertToMp4IfNeeded(file: File): Promise<File> {
     ffmpeg.FS("writeFile", "input.mov", await fileToUint8Array(file));
 
     // Convert MOV -> MP4
+    // -map 0:v:0 -> first video track
+    // -map 0:a:0 -> first audio track (avoid weird extra tracks)
+    // -ar 44100  -> normalize sample rate
+    // -ac 2      -> stereo
     await ffmpeg.run(
       "-i",
       "input.mov",
+      "-map",
+      "0:v:0",
+      "-map",
+      "0:a:0",
       "-c:v",
       "libx264",
       "-preset",
       "veryfast",
+      "-crf",
+      "20",
       "-c:a",
       "aac",
       "-b:a",
       "192k",
+      "-ar",
+      "44100",
+      "-ac",
+      "2",
       "-movflags",
       "+faststart",
       "output.mp4"

@@ -2,12 +2,28 @@
  * Backend (Supabase) types
  *********************************/
 
+export interface BackendImprovementAction {
+  label?: string;
+  /** seconds from start of video */
+  timestamp_seconds?: number;
+  /** 0–1 */
+  confidence?: number;
+  // allow any extra fields from the model
+  [key: string]: any;
+}
+
 export interface BackendStoryEditingBuckets {
+  // older field from before – may or may not be present
   summary?: string;
+
+  // NEW: what analyze_simulation now writes
+  short_summary?: string[];
   what_worked?: string[];
   what_to_improve?: string[];
   key_changes?: string[];
   deep_dive?: string[];
+
+  improvement_actions?: BackendImprovementAction[];
 }
 
 export interface BackendVisualAnalysis {
@@ -22,9 +38,13 @@ export interface BackendVisualAnalysis {
   };
   on_screen_text_usage: string;
 
-  // Nested buckets we care about
+  // Nested buckets we care about – now with the richer shape
   storytelling_insights?: BackendStoryEditingBuckets | null;
   editing_style_insights?: BackendStoryEditingBuckets | null;
+
+  // You may also have frame_timeline / visual_events, etc., but
+  // they aren't required by this mapper, so we leave them typed loosely.
+  [key: string]: any;
 }
 
 export interface BackendMetricsEngagementProbabilities {
@@ -50,7 +70,7 @@ export interface BackendMetrics {
 export interface BackendSimulation {
   id: string;
   created_at: string;
-  title: string | null;   
+  title: string | null;
   audience_prompt: string | null;
   video_url: string | null;
   transcript: string | null;
@@ -259,21 +279,31 @@ export interface UIPersonaMetrics {
 }
 
 /**
+ * Improvement actions with timestamps for UI.
+ * These mirror what analyze_simulation writes.
+ */
+export interface UIImprovementAction {
+  label: string;
+  timestamp_seconds: number;
+  confidence: number;
+}
+
+/**
  * Buckets for insights panels
  * (Storytelling + Editing)
  *
  * NOTE: we keep snake_case keys because AnalyticsPanel.normalizeInsights
- * expects what_worked / what_to_improve / key_changes.
- *
- * We also carry optional summary + deep_dive for future
- * “expanded insights” modals.
+ * expects what_worked / what_to_improve / key_changes and can also
+ * read improvement_actions + short_summary.
  */
 export interface UIInsightBuckets {
   summary?: string | null;
+  short_summary?: string[] | null;
   what_worked: string[];
   what_to_improve: string[];
   key_changes: string[];
   deep_dive?: string[];
+  improvement_actions: UIImprovementAction[];
 }
 
 /**
@@ -289,6 +319,8 @@ export interface UIGeneralFeedback {
   avgSwipeProbability: number | null;
   avgWatchTimeSeconds: number | null;
 
+  // NOTE: these are now rich buckets – AnalyticsPanel.normalizeInsights
+  // will further normalise them and preserve timestamps.
   storytellingInsights: UIInsightBuckets;
   editingInsights: UIInsightBuckets;
 
@@ -389,10 +421,12 @@ function bucketizeFlatInsights(
   if (!items.length) {
     return {
       summary: null,
+      short_summary: null,
       what_worked: [],
       what_to_improve: [],
       key_changes: [],
       deep_dive: [],
+      improvement_actions: [],
     };
   }
 
@@ -404,12 +438,23 @@ function bucketizeFlatInsights(
   const what_to_improve = improveRaw.slice(0, 3);
   const key_changes = items.slice(0, 3);
 
+  // For fallback, create simple improvement_actions with timestamp 0
+  const improvement_actions: UIImprovementAction[] = key_changes.map(
+    (label) => ({
+      label,
+      timestamp_seconds: 0,
+      confidence: 0.7,
+    })
+  );
+
   return {
     summary: null,
+    short_summary: null,
     what_worked,
     what_to_improve,
     key_changes,
     deep_dive: [],
+    improvement_actions,
   };
 }
 
@@ -419,19 +464,59 @@ function fromBackendBuckets(
   if (!src) {
     return {
       summary: null,
+      short_summary: null,
       what_worked: [],
       what_to_improve: [],
       key_changes: [],
       deep_dive: [],
+      improvement_actions: [],
     };
+  }
+
+  // Normalise improvement_actions from backend into UIImprovementAction[]
+  let improvement_actions: UIImprovementAction[] = [];
+
+  if (Array.isArray(src.improvement_actions)) {
+    improvement_actions = src.improvement_actions
+      .map((item) => {
+        if (!item) return null;
+
+        const labelRaw =
+          typeof item.label === "string"
+            ? item.label
+            : typeof (item as any).text === "string"
+            ? (item as any).text
+            : typeof (item as any).action === "string"
+            ? (item as any).action
+            : "";
+
+        const label = labelRaw.trim();
+        if (!label) return null;
+
+        const ts =
+          typeof item.timestamp_seconds === "number"
+            ? item.timestamp_seconds
+            : 0;
+        const confidence =
+          typeof item.confidence === "number" ? item.confidence : 0.7;
+
+        return {
+          label,
+          timestamp_seconds: ts,
+          confidence,
+        };
+      })
+      .filter(Boolean) as UIImprovementAction[];
   }
 
   return {
     summary: src.summary ?? null,
+    short_summary: src.short_summary ?? null,
     what_worked: (src.what_worked ?? []).filter(Boolean),
     what_to_improve: (src.what_to_improve ?? []).filter(Boolean),
     key_changes: (src.key_changes ?? []).filter(Boolean),
     deep_dive: (src.deep_dive ?? []).filter(Boolean),
+    improvement_actions,
   };
 }
 

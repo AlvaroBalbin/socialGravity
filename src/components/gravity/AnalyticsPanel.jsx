@@ -11,6 +11,17 @@ import {
   X,
 } from 'lucide-react';
 
+// ---- Helpers -------------------------------------------------------------
+
+// seconds -> "mm:ss"
+function formatTimestamp(seconds) {
+  if (seconds == null || Number.isNaN(seconds)) return '0:00';
+  const total = Math.max(0, Math.floor(seconds));
+  const m = Math.floor(total / 60);
+  const s = (total % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
 // RetentionCurve now expects values 0–1 (from generalFeedback.retentionCurve)
 function RetentionCurve({ retentionCurve = [], videoDuration = 12 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
@@ -68,39 +79,128 @@ function RetentionCurve({ retentionCurve = [], videoDuration = 12 }) {
   );
 }
 
-// Helper to normalize insights:
-// - if it's already an object {what_worked, what_to_improve, key_changes} → use it
-// - if it's just an array → treat it as "key_changes" so we still show it
-function normalizeInsights(raw) {
-  if (!raw) return { what_worked: [], what_to_improve: [], key_changes: [] };
-
-  // Already structured
-  if (
-    typeof raw === 'object' &&
-    !Array.isArray(raw) &&
-    ('what_worked' in raw || 'what_to_improve' in raw || 'key_changes' in raw)
-  ) {
-    return {
-      what_worked: raw.what_worked ?? [],
-      what_to_improve: raw.what_to_improve ?? [],
-      key_changes: raw.key_changes ?? [],
-    };
-  }
-
-  // Legacy flat array
-  if (Array.isArray(raw)) {
-    return {
-      what_worked: [],
-      what_to_improve: [],
-      key_changes: raw,
-    };
-  }
-
-  return { what_worked: [], what_to_improve: [], key_changes: [] };
+// Normalised insight shape we want internally (JS version)
+function makeEmptyInsights() {
+  return {
+    short_summary: [],
+    what_worked: [],
+    what_to_improve: [],
+    key_changes: [],
+    improvement_actions: [], // { label, timestamp_seconds, confidence }
+  };
 }
 
-// Tiny helper to grab 2–3 ultra-short bullets across buckets
+// Helper to normalize insights into the shape above
+function normalizeInsights(raw) {
+  if (!raw) return makeEmptyInsights();
+
+  // Flat array -> treat as key_changes + derive simple actions
+  if (Array.isArray(raw)) {
+    const trimmed = raw.filter(Boolean);
+    return {
+      short_summary: [],
+      what_worked: [],
+      what_to_improve: [],
+      key_changes: trimmed,
+      improvement_actions: trimmed.slice(0, 4).map((label) => ({
+        label,
+        timestamp_seconds: 0,
+        confidence: 0.7,
+      })),
+    };
+  }
+
+  // Object – new/mixed shape
+  const short_summary = Array.isArray(raw.short_summary)
+    ? raw.short_summary
+    : [];
+  const what_worked = Array.isArray(raw.what_worked) ? raw.what_worked : [];
+  const what_to_improve = Array.isArray(raw.what_to_improve)
+    ? raw.what_to_improve
+    : [];
+  const key_changes = Array.isArray(raw.key_changes) ? raw.key_changes : [];
+
+  let improvement_actions = [];
+
+  if (Array.isArray(raw.improvement_actions)) {
+    improvement_actions = raw.improvement_actions
+      .slice(0, 4)
+      .map((item) => {
+        if (!item) return null;
+
+        // If model somehow returned strings
+        if (typeof item === 'string') {
+          return {
+            label: item,
+            timestamp_seconds: 0,
+            confidence: 0.7,
+          };
+        }
+
+        const label =
+          typeof item.label === 'string'
+            ? item.label
+            : typeof item.text === 'string'
+            ? item.text
+            : typeof item.action === 'string'
+            ? item.action
+            : '';
+
+        if (!label) return null;
+
+        const ts =
+          typeof item.timestamp_seconds === 'number'
+            ? item.timestamp_seconds
+            : 0;
+        const confidence =
+          typeof item.confidence === 'number' ? item.confidence : 0.7;
+
+        return {
+          label,
+          timestamp_seconds: ts,
+          confidence,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  // Fallback: derive actions from what_to_improve/key_changes
+  if (!improvement_actions.length) {
+    const merged = [...what_to_improve, ...key_changes]
+      .map((s) => (s || '').trim())
+      .filter(Boolean)
+      .slice(0, 4);
+
+    improvement_actions = merged.map((label) => ({
+      label,
+      timestamp_seconds: 0,
+      confidence: 0.7,
+    }));
+  }
+
+  return {
+    short_summary,
+    what_worked,
+    what_to_improve,
+    key_changes,
+    improvement_actions,
+  };
+}
+
+// Tiny helper to grab 2–3 bullets for collapsed view
+// Priority: short_summary -> improvement_actions.labels -> buckets
 function summarizeBuckets(buckets, maxItems = 3) {
+  if (buckets.short_summary && buckets.short_summary.length) {
+    return buckets.short_summary.slice(0, maxItems);
+  }
+
+  if (buckets.improvement_actions && buckets.improvement_actions.length) {
+    return buckets.improvement_actions
+      .map((a) => (a.label || '').trim())
+      .filter(Boolean)
+      .slice(0, maxItems);
+  }
+
   const all = [
     ...(buckets.what_worked || []),
     ...(buckets.what_to_improve || []),
@@ -119,14 +219,38 @@ function InsightGroup({ title, items }) {
     <div>
       <p className="text-[11px] font-semibold text-gray-800 mb-2">{title}</p>
       <div className="space-y-2 mb-3">
-  {items.map((insight, index) => (
-    <div key={index} className="flex items-start gap-2">
-      <span className="text-gray-300 text-xs leading-none">•</span>
-      <p className="text-xs text-gray-600 leading-relaxed">{insight}</p>
+        {items.map((insight, index) => (
+          <div key={index} className="flex items-start gap-2">
+            <span className="text-gray-300 text-xs leading-none">•</span>
+            <p className="text-xs text-gray-600 leading-relaxed">{insight}</p>
+          </div>
+        ))}
+      </div>
     </div>
-  ))}
-</div>
+  );
+}
 
+function ImprovementGroup({ items, title = 'Improvement actions' }) {
+  if (!items || !items.length) return null;
+
+  return (
+    <div>
+      <p className="text-[11px] font-semibold text-gray-800 mb-2">{title}</p>
+      <div className="space-y-2 mb-1">
+        {items.map((item, index) => (
+          <div key={index} className="flex items-start gap-2">
+            <span className="mt-[2px] inline-flex items-center justify-center px-1.5 py-[1px] rounded-full border border-gray-200 bg-gray-50 text-[10px] font-mono text-gray-500">
+              {formatTimestamp(item.timestamp_seconds)}
+            </span>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              {item.label}
+            </p>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-gray-400">
+        Timestamps are approximate edit points in the video.
+      </p>
     </div>
   );
 }
@@ -153,11 +277,10 @@ function InsightsModal({ title, buckets, onClose }) {
         </div>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <InsightGroup title="What worked" items={buckets.what_worked} />
-          <InsightGroup
-            title="What to improve"
-            items={buckets.what_to_improve}
-          />
-          <InsightGroup title="Key changes" items={buckets.key_changes} />
+          <ImprovementGroup items={buckets.improvement_actions} />
+          {/* If you want to also show the raw lists, you can uncomment: */}
+          {/* <InsightGroup title="What to improve" items={buckets.what_to_improve} />
+          <InsightGroup title="Key changes" items={buckets.key_changes} /> */}
         </div>
       </div>
     </div>
@@ -166,7 +289,7 @@ function InsightsModal({ title, buckets, onClose }) {
 
 /**
  * Props:
- *   - simulation: UISimulation (from mappers.ts)
+ *   - simulation: UISimulation
  *   - selectedPersona: UIPersonaSummary | null
  */
 export default function AnalyticsPanel({ simulation, selectedPersona }) {
@@ -290,6 +413,10 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const storySummary = summarizeBuckets(storytelling, 3);
   const editingSummary = summarizeBuckets(editing, 3);
 
+  // NEW: pick top 3 improvement actions for collapsed view
+  const storyPreviewActions = storytelling.improvement_actions.slice(0, 3);
+  const editingPreviewActions = editing.improvement_actions.slice(0, 3);
+
   // Persona extra info for metrics (not layout-changing)
   const personaWatchTimeStr =
     personaMetrics?.watchTimeSeconds == null
@@ -344,7 +471,9 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
           </div>
 
           <p className="text-sm text-gray-500">
-            {isPersonaView ? `${selectedPersonaLabel} Fit` : 'Overall Audience Fit'}
+            {isPersonaView
+              ? `${selectedPersonaLabel} Fit`
+              : 'Overall Audience Fit'}
           </p>
 
           {isPersonaView && (
@@ -373,8 +502,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
           </h3>
           {(storySummary.length ||
             storytelling.what_worked.length ||
-            storytelling.what_to_improve.length ||
-            storytelling.key_changes.length) && (
+            storytelling.improvement_actions.length) && (
             <button
               onClick={() => setShowStoryModal(true)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50"
@@ -385,17 +513,31 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
           )}
         </div>
 
-        {storySummary.length ? (
+        {storyPreviewActions.length ? (
+          // Show timestamped preview actions if we have them
+          <div className="space-y-1.5">
+            {storyPreviewActions.map((item, index) => (
+              <div key={index} className="flex items-start gap-2">
+                <span className="mt-[1px] inline-flex items-center justify-center px-1.5 py-[1px] rounded-full border border-gray-200 bg-gray-50 text-[9px] font-mono text-gray-500">
+                  {formatTimestamp(item.timestamp_seconds)}
+                </span>
+                <p className="text-[11px] text-gray-600 leading-snug">
+                  {item.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : storySummary.length ? (
+          // Fallback: plain text bullets
           <div className="space-y-1.5">
             {storySummary.map((insight, index) => (
-            <div key={index} className="flex items-start gap-2">
-              <span className="text-gray-300 text-xs leading-none">•</span>
-              <p className="text-[11px] text-gray-600 leading-snug">
-                {insight}
-              </p>
-            </div>
-          ))}
-
+              <div key={index} className="flex items-start gap-2">
+                <span className="text-gray-300 text-xs leading-none">•</span>
+                <p className="text-[11px] text-gray-600 leading-snug">
+                  {insight}
+                </p>
+              </div>
+            ))}
           </div>
         ) : (
           <p className="text-xs text-gray-400">
@@ -412,8 +554,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
           </h3>
           {(editingSummary.length ||
             editing.what_worked.length ||
-            editing.what_to_improve.length ||
-            editing.key_changes.length) && (
+            editing.improvement_actions.length) && (
             <button
               onClick={() => setShowEditingModal(true)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50"
@@ -424,17 +565,31 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
           )}
         </div>
 
-        {editingSummary.length ? (
+        {editingPreviewActions.length ? (
+          // Show timestamped preview actions if we have them
+          <div className="space-y-1.5">
+            {editingPreviewActions.map((item, index) => (
+              <div key={index} className="flex items-start gap-2">
+                <span className="mt-[1px] inline-flex items-center justify-center px-1.5 py-[1px] rounded-full border border-gray-200 bg-gray-50 text-[9px] font-mono text-gray-500">
+                  {formatTimestamp(item.timestamp_seconds)}
+                </span>
+                <p className="text-[11px] text-gray-600 leading-snug">
+                  {item.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : editingSummary.length ? (
+          // Fallback: plain text bullets
           <div className="space-y-1.5">
             {editingSummary.map((insight, index) => (
-            <div key={index} className="flex items-start gap-2">
-              <span className="text-gray-300 text-xs leading-none">•</span>
-              <p className="text-[11px] text-gray-600 leading-snug">
-                {insight}
-              </p>
-            </div>
-          ))}
-
+              <div key={index} className="flex items-start gap-2">
+                <span className="text-gray-300 text-xs leading-none">•</span>
+                <p className="text-[11px] text-gray-600 leading-snug">
+                  {insight}
+                </p>
+              </div>
+            ))}
           </div>
         ) : (
           <p className="text-xs text-gray-400">
