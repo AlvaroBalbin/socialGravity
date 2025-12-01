@@ -97,16 +97,18 @@ function normalizeInsights(raw) {
   // Flat array -> treat as key_changes + derive simple actions
   if (Array.isArray(raw)) {
     const trimmed = raw.filter(Boolean);
+    const improvement_actions = trimmed.slice(0, 4).map((label) => ({
+      label,
+      timestamp_seconds: 0,
+      confidence: 0.7,
+    }));
+
     return {
       short_summary: [],
       what_worked: [],
       what_to_improve: [],
       key_changes: trimmed,
-      improvement_actions: trimmed.slice(0, 4).map((label) => ({
-        label,
-        timestamp_seconds: 0,
-        confidence: 0.7,
-      })),
+      improvement_actions,
     };
   }
 
@@ -177,6 +179,11 @@ function normalizeInsights(raw) {
       confidence: 0.7,
     }));
   }
+
+  // Ensure chronological order just in case
+  improvement_actions = improvement_actions.sort(
+    (a, b) => (a.timestamp_seconds ?? 0) - (b.timestamp_seconds ?? 0)
+  );
 
   return {
     short_summary,
@@ -278,9 +285,6 @@ function InsightsModal({ title, buckets, onClose }) {
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <InsightGroup title="What worked" items={buckets.what_worked} />
           <ImprovementGroup items={buckets.improvement_actions} />
-          {/* If you want to also show the raw lists, you can uncomment: */}
-          {/* <InsightGroup title="What to improve" items={buckets.what_to_improve} />
-          <InsightGroup title="Key changes" items={buckets.key_changes} /> */}
         </div>
       </div>
     </div>
@@ -400,9 +404,37 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
   const retentionCurve = general.retentionCurve || [];
 
+  // ---- Persona-level story playbook (from generate_personas) -----------
+  const personaStoryPlaybook =
+    selectedPersona?.storyPlaybook ||
+    selectedPersona?.story_playbook ||
+    selectedPersona?.personaJson?.story_playbook ||
+    selectedPersona?.persona_json?.story_playbook ||
+    null;
+
   // Qualitative:
+  // In persona view, prefer the per-persona story_playbook (with timestamps).
   const rawStorytelling = isPersonaView
-    ? personaMetrics.storytellingInsights || personaMetrics.qualitativeFeedback
+    ? personaStoryPlaybook &&
+      Array.isArray(personaStoryPlaybook.improvement_actions) &&
+      personaStoryPlaybook.improvement_actions.length
+      ? {
+          improvement_actions: personaStoryPlaybook.improvement_actions,
+          short_summary: Array.isArray(personaStoryPlaybook.short_summary)
+            ? personaStoryPlaybook.short_summary
+            : [],
+          what_worked: Array.isArray(personaStoryPlaybook.what_worked)
+            ? personaStoryPlaybook.what_worked
+            : [],
+          what_to_improve: Array.isArray(personaStoryPlaybook.what_to_improve)
+            ? personaStoryPlaybook.what_to_improve
+            : [],
+          key_changes: Array.isArray(personaStoryPlaybook.key_changes)
+            ? personaStoryPlaybook.key_changes
+            : [],
+        }
+      : personaMetrics?.storytellingInsights ||
+        personaMetrics?.qualitativeFeedback
     : general.storytellingInsights;
 
   const rawEditing = general.editingInsights;
@@ -413,7 +445,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const storySummary = summarizeBuckets(storytelling, 3);
   const editingSummary = summarizeBuckets(editing, 3);
 
-  // NEW: pick top 3 improvement actions for collapsed view
+  // pick top 3 improvement actions for collapsed view
   const storyPreviewActions = storytelling.improvement_actions.slice(0, 3);
   const editingPreviewActions = editing.improvement_actions.slice(0, 3);
 

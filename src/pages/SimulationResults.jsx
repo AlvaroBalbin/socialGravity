@@ -24,7 +24,7 @@ export default function SimulationResults() {
   const minSidebarWidth = 320;
   const maxSidebarWidth = 720;
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth(); // ⬅️ need user too
 
   // Read simulation ID from query params
   const urlParams = new URLSearchParams(window.location.search);
@@ -134,12 +134,24 @@ export default function SimulationResults() {
   // Personas for orbit + top row (supports both new + old field names)
   const personas = simulation.personas ?? simulation.personas_data ?? [];
 
+  // Determine if this simulation is already owned by the logged-in user
+  // Use a safe "any" read so TS doesn't complain about user_id not being in UISimulation
+// Determine if this simulation is already owned by the logged-in user
+// Use a safe "any-style" read so TS doesn't complain about user_id / userId
+const ownerId = simulation
+  ? simulation["user_id"] ?? simulation["userId"] ?? null
+  : null;
+
+  const isOwnedByUser =
+    isAuthenticated && !!user?.id && ownerId === user.id;
+
   return (
     <div className="h-screen bg-white flex flex-col">
       <SimulationHeader
         simulationData={simulation}
         onTitleChange={handleTitleChange}
         onSave={handleSave}
+        isOwnedByUser={isOwnedByUser} // ✅ passed down
       />
 
       {/* Main Content */}

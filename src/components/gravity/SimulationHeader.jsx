@@ -12,6 +12,7 @@ export default function SimulationHeader({
   simulationData,
   onTitleChange,
   onSave,
+  isOwnedByUser = false, // ✅ new prop
 }) {
   // Generate default title if nothing exists (old sims / weird states)
   const generateDefaultTitle = () => {
@@ -38,6 +39,7 @@ export default function SimulationHeader({
   const titleInputRef = useRef(null);
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+
   const persistTitle = async (finalTitle) => {
     const simulationId =
       simulationData?.id || simulationData?.simulation_id;
@@ -95,7 +97,7 @@ export default function SimulationHeader({
     setIsEditingTitle(true);
   };
 
-    const commitTitle = async (nextTitle) => {
+  const commitTitle = async (nextTitle) => {
     const trimmed = nextTitle.trim() || generateDefaultTitle();
     setTitle(trimmed);
     setIsEditingTitle(false);
@@ -105,7 +107,6 @@ export default function SimulationHeader({
     // Fire-and-forget DB update (if logged in)
     await persistTitle(trimmed);
   };
-
 
   const handleTitleBlur = () => {
     commitTitle(title);
@@ -177,6 +178,10 @@ export default function SimulationHeader({
     }
   };
 
+  const handleViewAll = () => {
+    navigate(createPageUrl("Profile"));
+  };
+
   const createdAtLabel = simulationData?.createdAt
     ? new Date(simulationData.createdAt).toLocaleString()
     : null;
@@ -206,29 +211,40 @@ export default function SimulationHeader({
           )}
         </div>
 
-        {/* Save Button */}
-        <button
-          onClick={handleSave}
-          disabled={isSaved || isSaving}
-          className={`px-5 py-2 text-sm font-medium rounded-xl border transition-all duration-200 ${
-            isSaved
-              ? "bg-white border-gray-200 text-gray-400 cursor-default"
-              : "bg-white border-gray-900 text-gray-900 hover:shadow-md hover:-translate-y-0.5"
-          }`}
-        >
-          {isSaving ? (
-            <span className="flex items-center gap-2">
-              <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              Saving...
-            </span>
-          ) : isSaved ? (
-            <span className="flex items-center gap-1.5">
-              Saved <Check className="w-3.5 h-3.5" />
-            </span>
-          ) : (
-            "Save Simulation"
-          )}
-        </button>
+        {/* Right Button */}
+        {isOwnedByUser ? (
+          // ✅ User already owns this simulation → go to library
+          <button
+            onClick={handleViewAll}
+            className="px-5 py-2 text-sm font-medium rounded-xl border border-gray-900 bg-gray-900 text-white hover:bg-black transition-all duration-200"
+          >
+            View All Simulations
+          </button>
+        ) : (
+          // ❌ Not owned yet → Save Simulation flow
+          <button
+            onClick={handleSave}
+            disabled={isSaved || isSaving}
+            className={`px-5 py-2 text-sm font-medium rounded-xl border transition-all duration-200 ${
+              isSaved
+                ? "bg-white border-gray-200 text-gray-400 cursor-default"
+                : "bg-white border-gray-900 text-gray-900 hover:shadow-md hover:-translate-y-0.5"
+            }`}
+          >
+            {isSaving ? (
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </span>
+            ) : isSaved ? (
+              <span className="flex items-center gap-1.5">
+                Saved <Check className="w-3.5 h-3.5" />
+              </span>
+            ) : (
+              "Save Simulation"
+            )}
+          </button>
+        )}
       </div>
 
       {/* Section B: Meta + prompt toggle */}
@@ -238,9 +254,7 @@ export default function SimulationHeader({
           {createdAtLabel && (
             <span className="h-1 w-1 rounded-full bg-gray-300" />
           )}
-          <span>
-            Status: {simulationData?.status || "unknown"}
-          </span>
+          <span>Status: {simulationData?.status || "unknown"}</span>
         </div>
 
         {simulationData?.audiencePrompt && (
@@ -249,9 +263,7 @@ export default function SimulationHeader({
             onClick={() => setShowPrompt((p) => !p)}
             className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900"
           >
-            {showPrompt
-              ? "Hide audience prompt"
-              : "Show audience prompt"}
+            {showPrompt ? "Hide audience prompt" : "Show audience prompt"}
             {showPrompt ? (
               <ChevronUp className="w-3 h-3" />
             ) : (

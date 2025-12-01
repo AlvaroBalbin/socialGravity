@@ -1,8 +1,11 @@
+// src/components/simulation/SimulationModal.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { Upload, X } from "lucide-react";
 import { callEdge } from "@/lib/api";
 import { uploadAndConvertVideoForSimulation } from "@/lib/uploadAndConvertVideoForSimulation";
 import GravityLoader from "@/components/gravity/GravityLoader";
+// 👇 NEW: import supabase so we can mark simulations complete
+import { supabase } from "../../supabaseClient";
 
 export default function SimulationModal({ isOpen, onClose, onComplete }) {
   const [step, setStep] = useState(1);
@@ -193,8 +196,21 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
         simulation_id: simulationId,
       });
 
-      // 8) Finalizing
+      // 8) Finalising
       setStatusText("Finalising your simulation dashboard…");
+
+      // 9) ✅ Mark simulation as complete in the DB
+      const { error: statusError } = await supabase
+        .from("simulations")
+        .update({
+          status: "complete",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", simulationId);
+
+      if (statusError) {
+        console.error("Failed to mark simulation complete", statusError);
+      }
 
       // Notify parent that everything is done
       onComplete({
@@ -264,7 +280,8 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
               </p>
 
               <p className="text-xs text-gray-500 text-center max-w-xs">
-                We’re analysing your video and preparing your simulation. This might take up to 2 minutes.
+                We’re analysing your video and preparing your simulation. This
+                might take up to 2 minutes.
               </p>
             </div>
           ) : (

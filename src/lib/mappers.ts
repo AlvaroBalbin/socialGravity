@@ -4,8 +4,8 @@
 
 export interface BackendImprovementAction {
   label?: string;
-  /** seconds from start of video */
-  timestamp_seconds?: number;
+  /** seconds from start of video (can be string or number from DB/LLM) */
+  timestamp_seconds?: number | string;
   /** 0–1 */
   confidence?: number;
   // allow any extra fields from the model
@@ -137,6 +137,12 @@ export interface BackendPersonaJson {
     deal_breakers: string[];
     evaluation_criteria: string[];
   };
+
+  /**
+   * Persona-level story playbook we now generate in generate_personas.
+   * Uses the same bucket shape as BackendStoryEditingBuckets.
+   */
+  story_playbook?: BackendStoryEditingBuckets | null;
 }
 
 export interface BackendPersonaRow {
@@ -241,6 +247,12 @@ export interface UIPersonaSummary {
 
   /** Optional tags for persona pill chips */
   tags?: string[];
+
+  /**
+   * Persona-level story playbook (already normalised into UI buckets),
+   * including timestamped improvement_actions.
+   */
+  storyPlaybook?: UIInsightBuckets | null;
 }
 
 export interface UIPersonaMetrics {
@@ -438,15 +450,7 @@ function bucketizeFlatInsights(
   const what_to_improve = improveRaw.slice(0, 3);
   const key_changes = items.slice(0, 3);
 
-  // For fallback, create simple improvement_actions with timestamp 0
-  const improvement_actions: UIImprovementAction[] = key_changes.map(
-    (label) => ({
-      label,
-      timestamp_seconds: 0,
-      confidence: 0.7,
-    })
-  );
-
+  // Fallback buckets only – no synthetic improvement_actions
   return {
     summary: null,
     short_summary: null,
@@ -454,7 +458,7 @@ function bucketizeFlatInsights(
     what_to_improve,
     key_changes,
     deep_dive: [],
-    improvement_actions,
+    improvement_actions: [],
   };
 }
 
@@ -493,16 +497,25 @@ function fromBackendBuckets(
         const label = labelRaw.trim();
         if (!label) return null;
 
-        const ts =
-          typeof item.timestamp_seconds === "number"
-            ? item.timestamp_seconds
-            : 0;
+        // accept timestamp_seconds or timestamp, string or number
+        const rawTs =
+          (item as any).timestamp_seconds ?? (item as any).timestamp ?? null;
+
+        let ts: number | null = null;
+        if (typeof rawTs === "number") {
+          ts = rawTs;
+        } else if (typeof rawTs === "string") {
+          const parsed = Number(rawTs);
+          if (!Number.isNaN(parsed)) ts = parsed;
+        }
+
         const confidence =
           typeof item.confidence === "number" ? item.confidence : 0.7;
 
         return {
           label,
-          timestamp_seconds: ts,
+          // keep 0 as “no timestamp” fallback; UI can special-case if needed
+          timestamp_seconds: ts ?? 0,
           confidence,
         };
       })
@@ -552,6 +565,9 @@ export function mapSimulationToUI(
   const uiPersonas: UIPersonaSummary[] = personas.map((p) => {
     const pj = p.persona_json;
 
+    // Normalise persona-level story_playbook into UI buckets
+    const storyPlaybook = fromBackendBuckets(pj.story_playbook ?? null);
+
     return {
       id: p.persona_id,
       label: p.label || pj.short_label || p.persona_id,
@@ -564,6 +580,7 @@ export function mapSimulationToUI(
       watchTimeSeconds: null,
       watchTime: null,
       tags: [],
+      storyPlaybook,
     };
   });
 
