@@ -5,8 +5,6 @@ import {
   Share2,
   Bookmark,
   UserPlus,
-  Clock,
-  TrendingUp,
   Maximize2,
   X,
 } from 'lucide-react';
@@ -22,7 +20,7 @@ function formatTimestamp(seconds) {
   return `${m}:${s}`;
 }
 
-// RetentionCurve now expects values 0–1 (from generalFeedback.retentionCurve)
+// RetentionCurve expects values 0–1 (from generalFeedback / personaMetrics / global metrics)
 function RetentionCurve({ retentionCurve = [], videoDuration = 12 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   if (!retentionCurve.length) return null;
@@ -291,6 +289,47 @@ function InsightsModal({ title, buckets, onClose }) {
   );
 }
 
+// ---- Engagement UI helpers -------------------------------------------
+
+// These match your backend ENGAGEMENT_RANGES (fractions 0–1)
+const ENGAGEMENT_UI_RANGES = {
+  Like: { min: 0.01, max: 0.15 }, // 1–15%
+  Comment: { min: 0.001, max: 0.02 }, // 0.1–2%
+  Share: { min: 0.002, max: 0.04 }, // 0.2–4%
+  Save: { min: 0.003, max: 0.06 }, // 0.3–6%
+  Follow: { min: 0.0005, max: 0.015 }, // 0.05–1.5%
+};
+
+// Show nice percentages, including sub-1% values
+function formatPercentFromProb(prob) {
+  if (prob == null || Number.isNaN(prob)) return '–';
+  const p = prob * 100;
+  if (p > 0 && p < 1) return `${p.toFixed(1)}%`; // 0.1–0.9
+  if (p < 10) return `${p.toFixed(1)}%`; // 1.0–9.9
+  return `${Math.round(p)}%`; // 10%+
+}
+
+// Bar width is relative to that metric's own allowed range
+function getEngagementBarWidth(label, prob) {
+  if (prob == null || Number.isNaN(prob)) return 0;
+
+  const cfg = ENGAGEMENT_UI_RANGES[label];
+  if (!cfg) {
+    // fallback: just straight percentage
+    return Math.max(0, Math.min(prob * 100, 100));
+  }
+
+  const { min, max } = cfg;
+  const clamped = Math.min(Math.max(prob, min), max);
+  let ratio = (clamped - min) / (max - min); // 0–1 within that metric's band
+
+  // ensure non-zero values don't look like a hairline
+  const MIN_VISUAL_RATIO = 0.08; // 8%
+  if (ratio > 0 && ratio < MIN_VISUAL_RATIO) ratio = MIN_VISUAL_RATIO;
+
+  return ratio * 100;
+}
+
 /**
  * Props:
  *   - simulation: UISimulation
@@ -305,9 +344,18 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const general = simulation.generalFeedback || {};
   const metrics = simulation.metrics || [];
 
+  // If metrics is an object (new backend payload), pull global attention metrics from it
+  const globalAttention =
+    simulation.metrics &&
+    !Array.isArray(simulation.metrics) &&
+    simulation.metrics.attention_metrics
+      ? simulation.metrics.attention_metrics
+      : null;
+
   // Find persona metrics (probabilities, watch time, qualitative feedback…)
   const personaMetrics =
     selectedPersona &&
+    Array.isArray(metrics) &&
     metrics.find((m) => m.personaId === selectedPersona.id);
 
   const isPersonaView = !!(selectedPersona && personaMetrics);
@@ -331,50 +379,41 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   // Engagement data source: persona vs general
   const engagementSource = isPersonaView ? personaMetrics : general;
 
+  // keep raw probabilities (0–1) here
   const engagementData = [
     {
       label: 'Like',
-      value: pct(
-        isPersonaView
-          ? engagementSource.likeProbability
-          : engagementSource.avgLikeProbability
-      ),
+      value: isPersonaView
+        ? engagementSource.likeProbability
+        : engagementSource.avgLikeProbability,
       icon: Heart,
     },
     {
       label: 'Comment',
-      value: pct(
-        isPersonaView
-          ? engagementSource.commentProbability
-          : engagementSource.avgCommentProbability
-      ),
+      value: isPersonaView
+        ? engagementSource.commentProbability
+        : engagementSource.avgCommentProbability,
       icon: MessageCircle,
     },
     {
       label: 'Share',
-      value: pct(
-        isPersonaView
-          ? engagementSource.shareProbability
-          : engagementSource.avgShareProbability
-      ),
+      value: isPersonaView
+        ? engagementSource.shareProbability
+        : engagementSource.avgShareProbability,
       icon: Share2,
     },
     {
       label: 'Save',
-      value: pct(
-        isPersonaView
-          ? engagementSource.saveProbability
-          : engagementSource.avgSaveProbability
-      ),
+      value: isPersonaView
+        ? engagementSource.saveProbability
+        : engagementSource.avgSaveProbability,
       icon: Bookmark,
     },
     {
       label: 'Follow',
-      value: pct(
-        isPersonaView
-          ? engagementSource.followProbability
-          : engagementSource.avgFollowProbability
-      ),
+      value: isPersonaView
+        ? engagementSource.followProbability
+        : engagementSource.avgFollowProbability,
       icon: UserPlus,
     },
   ];
@@ -382,12 +421,13 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const swipeProb = pct(
     isPersonaView
       ? personaMetrics.swipeProbability
-      : general.avgSwipeProbability
+      : globalAttention?.swipe_probability ?? general.avgSwipeProbability
   );
 
   const predictedWatchTimeSeconds = isPersonaView
     ? personaMetrics.watchTimeSeconds
-    : general.avgWatchTimeSeconds;
+    : globalAttention?.predicted_watch_time_seconds ??
+      general.avgWatchTimeSeconds;
 
   const predictedWatchTime =
     predictedWatchTimeSeconds == null
@@ -402,7 +442,18 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         )
       : null;
 
-  const retentionCurve = general.retentionCurve || [];
+  // 🔹 persona-specific retention curve if available; otherwise use global from metrics
+  const globalRetentionCurve =
+    (globalAttention?.retention_curve &&
+      Array.isArray(globalAttention.retention_curve) &&
+      globalAttention.retention_curve) ||
+    general.retentionCurve ||
+    [];
+
+  const retentionCurve =
+    isPersonaView && Array.isArray(personaMetrics?.retentionCurve)
+      ? personaMetrics.retentionCurve
+      : globalRetentionCurve;
 
   // ---- Persona-level story playbook (from generate_personas) -----------
   const personaStoryPlaybook =
@@ -639,7 +690,10 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         <div className="space-y-4">
           {engagementData.map((item) => {
             const Icon = item.icon;
-            const value = item.value ?? 0;
+            const prob = item.value; // 0–1 fraction
+            const display = formatPercentFromProb(prob);
+            const width = getEngagementBarWidth(item.label, prob);
+
             return (
               <div key={item.label} className="space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -653,13 +707,13 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
                     </span>
                   </div>
                   <span className="text-xs font-semibold text-gray-900 tabular-nums">
-                    {item.value != null ? `${item.value}%` : '–'}
+                    {display}
                   </span>
                 </div>
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${value}%` }}
+                    style={{ width: `${width}%` }}
                   />
                 </div>
               </div>

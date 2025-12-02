@@ -195,6 +195,9 @@ export interface BackendReactionJson {
   swipe_probability_final: number;
   follow_probability_final: number;
   comment_probability_final: number;
+
+  /** Persona-level retention curve (0–1 buckets), optional for older rows */
+  retention_curve?: number[] | null;
 }
 
 export interface BackendReactionRow {
@@ -273,6 +276,9 @@ export interface UIPersonaMetrics {
   swipeProbability: number;
   followProbability: number;
   commentProbability: number;
+
+  /** 0–1 retention curve buckets for this persona */
+  retentionCurve: number[];
 
   emotionalKeywords: string[];
   emotionalValence: number;
@@ -615,6 +621,10 @@ export function mapSimulationToUI(
       swipeProbability: rx.swipe_probability_final,
       followProbability: rx.follow_probability_final,
       commentProbability: rx.comment_probability_final,
+
+      retentionCurve: Array.isArray(rx.retention_curve)
+        ? rx.retention_curve
+        : [],
 
       emotionalKeywords: emo.keywords || [],
       emotionalValence: emo.valence,
