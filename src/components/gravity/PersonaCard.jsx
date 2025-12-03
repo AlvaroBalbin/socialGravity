@@ -1,42 +1,58 @@
-// src/components/gravity/PersonaCard.jsx
-import React from 'react';
+import React from "react";
 
-export default function PersonaCard({ persona, metrics, position }) {
+// 0–1 or 0–100 -> pretty %
+function formatPercentFromProb(value) {
+  if (value == null || typeof value !== "number" || !Number.isFinite(value)) {
+    return "–";
+  }
+
+  let v = value;
+  // handle 0–100 inputs
+  if (v > 1) v = v / 100;
+
+  const p = v * 100;
+  if (p > 0 && p < 1) return `${p.toFixed(1)}%`; // 0.1–0.9
+  if (p < 10) return `${p.toFixed(1)}%`;         // 1.0–9.9
+  return `${Math.round(p)}%`;                    // 10%+
+}
+
+export default function PersonaCard({ persona, metrics, position = "right" }) {
   if (!persona) return null;
 
-  const cardX = Math.min(Math.max(position.x, 120), 360);
-  const cardY = position.y < 180 ? position.y + 40 : position.y - 200;
+  const isRight = position === "right";
 
-  // ---- Helpers ---------------------------------------------------------
+  // ---- probabilities from persona metrics -----------------------------
 
-  const formatPercentFromProb = (prob) => {
-    if (prob == null || Number.isNaN(prob)) return '—';
-    const p = prob * 100;
-    if (p > 0 && p < 1) return `${p.toFixed(1)}%`; // 0.1–0.9
-    if (p < 10) return `${p.toFixed(1)}%`; // 1.0–9.9
-    return `${Math.round(p)}%`; // 10%+
-  };
+  const likeProbRaw =
+    (metrics && metrics.likeProbability) ??
+    (metrics && metrics.avgLikeProbability) ??
+    persona.likeProbability ??
+    null;
 
-  // Persona-level like & swipe (prefer metrics; fall back to persona props)
-  const likeProb =
-    typeof metrics?.likeProbability === 'number'
-      ? metrics.likeProbability
-      : typeof persona?.likeProbability === 'number'
-      ? persona.likeProbability
-      : null;
+  const swipeProbRaw =
+    (metrics && metrics.swipeProbability) ??
+    (metrics && metrics.avgSwipeProbability) ??
+    persona.swipeProbability ??
+    null;
 
-  const swipeProb =
-    typeof metrics?.swipeProbability === 'number'
-      ? metrics.swipeProbability
-      : typeof persona?.swipeProbability === 'number'
-      ? persona.swipeProbability
-      : null;
+  const likeText = formatPercentFromProb(likeProbRaw);
+  const swipeText = formatPercentFromProb(swipeProbRaw);
 
-  const likeDisplay = formatPercentFromProb(likeProb);
-  const swipeDisplay = formatPercentFromProb(swipeProb);
+  // ---- persona blurb (who they are) -----------------------------------
 
-  // Insight line
+  const personaBlurb =
+    persona.one_line_summary ||
+    persona.shortSummary ||
+    persona.summary ||
+    persona.description ||
+    (persona.personaJson && persona.personaJson.one_line_summary) ||
+    (persona.persona_json && persona.persona_json.one_line_summary) ||
+    null;
+
+  // ---- one-line insight about how they reacted ------------------------
+
   let insight = null;
+
   if (
     metrics &&
     Array.isArray(metrics.qualitativeFeedback) &&
@@ -44,84 +60,143 @@ export default function PersonaCard({ persona, metrics, position }) {
   ) {
     insight = metrics.qualitativeFeedback[0];
   }
+
   if (!insight) {
-    insight = 'No insight available yet for this persona.';
+    insight = "No insight available yet for this persona.";
   }
 
-  // Tags / emotional keywords – only used as a LAST-RESORT fallback for description
-  const tags =
-    (Array.isArray(persona.tags) && persona.tags.length && persona.tags) ||
-    (metrics && metrics.emotionalKeywords) ||
-    [];
-
-  // --- One-sentence persona description ---------------------------------
-  let description =
-    // fields coming directly from edge function
-    persona.one_liner ||
-    persona.oneLiner ||
-    persona.one_line_summary ||
-    persona.description ||
-    // nested JSON variants (if persona_json was not flattened)
-    (persona.personaJson && persona.personaJson.one_liner) ||
-    (persona.persona_json && persona.persona_json.one_liner) ||
-    (persona.personaJson && persona.personaJson.one_line_summary) ||
-    (persona.persona_json && persona.persona_json.one_line_summary) ||
-    (persona.personaJson && persona.personaJson.description) ||
-    (persona.persona_json && persona.persona_json.description) ||
-    null;
-
-  // If still nothing, gently turn tags into a human sentence
-  if (!description && tags.length) {
-    const top = tags.slice(0, 3).join(', ');
-    description = `A ${top.toLowerCase()} type viewer.`;
-  }
+  const name =
+    persona.displayName ||
+    persona.label ||
+    persona.name ||
+    persona.id ||
+    "Persona";
 
   return (
     <div
-      className="absolute z-30 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 w-56 pointer-events-none"
+      className="flex items-center"
       style={{
-        left: `${cardX}px`,
-        top: `${cardY}px`,
-        transform: 'translateX(-50%)',
-        animation: 'fadeIn 0.45s ease-out',
+        flexDirection: isRight ? "row" : "row-reverse",
       }}
     >
-      <h3 className="font-semibold text-gray-900 text-sm mb-1.5">
-        {persona.displayName ||
-          persona.display_name ||
-          persona.label ||
-          persona.name ||
-          persona.id}
-      </h3>
+      {/* Connector line */}
+      <div
+        style={{
+          width: 14,
+          height: 1,
+          backgroundColor: "#D8D8D8",
+        }}
+      />
 
-      {/* One-sentence description instead of tags */}
-      {description && (
-        <p className="text-[11px] text-gray-600 mb-3 leading-snug">
-          {description}
-        </p>
-      )}
+      {/* Tag container */}
+      <div
+        style={{
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #E6E6E6",
+          borderRadius: 7,
+          padding: 16,
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+          width: 260,
+          animation: "personaTagFade 0.2s ease-out",
+        }}
+      >
+        {/* Persona Name */}
+        <div
+          style={{
+            fontWeight: 600,
+            fontSize: 14,
+            color: "#111111",
+            marginBottom: 4,
+          }}
+        >
+          {name}
+        </div>
 
-      {/* Stats: Like % and Swipe % only */}
-      <div className="space-y-0.5 mb-3">
-        <p className="text-xs text-gray-500">
-          Like rate:{' '}
-          <span className="text-gray-800 font-medium">{likeDisplay}</span>
-        </p>
-        <p className="text-xs text-gray-500">
-          Swipe rate:{' '}
-          <span className="text-gray-800 font-medium">{swipeDisplay}</span>
-        </p>
+        {/* Persona blurb */}
+        {personaBlurb && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "#666666",
+              lineHeight: 1.35,
+              marginBottom: 10,
+            }}
+          >
+            {personaBlurb}
+          </div>
+        )}
+
+        {/* Metrics Row */}
+        <div className="flex justify-between" style={{ marginBottom: 10 }}>
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                color: "#777777",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 2,
+              }}
+            >
+              Like Probability
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#111111",
+              }}
+            >
+              {likeText}
+            </div>
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                color: "#777777",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 2,
+              }}
+            >
+              Swipe Probability
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#111111",
+              }}
+            >
+              {swipeText}
+            </div>
+          </div>
+        </div>
+
+        {/* Insight line */}
+        <div
+          style={{
+            fontSize: 11,
+            color: "#999999",
+            fontStyle: "italic",
+            lineHeight: 1.35,
+          }}
+        >
+          {insight}
+        </div>
       </div>
 
-      {/* Insight */}
-      <p className="text-[11px] text-gray-400 italic border-t border-gray-100 pt-2.5">
-        {insight}
-      </p>
-
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateX(-50%) translateY(5px); }
-          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        @keyframes personaTagFade {
+          from {
+            opacity: 0;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
     </div>
