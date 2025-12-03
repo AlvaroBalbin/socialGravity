@@ -10,7 +10,7 @@ export default function FeedbackWidget({
 }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [email, setEmail] = useState("");    // contact email they type
+  const [email, setEmail] = useState(""); // contact email they type
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -20,17 +20,22 @@ export default function FeedbackWidget({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
     setError("");
+    setSubmitted(false);
+
+    // Soft validation instead of browser "fill this field" popup
+    if (!message.trim()) {
+      setError("Please add a bit of feedback before sending.");
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
       const { error: insertError } = await supabase.from("feedback").insert({
         message,
-        // email field in DB can be your "contact" email, or rename to contact_email
         contact_email: email || null,
         phone: phone || null,
-
-        // link to account if logged in
         user_id: user?.id || null,
         account_email: user?.email || null,
       });
@@ -102,11 +107,17 @@ export default function FeedbackWidget({
               Your feedback
             </label>
             <textarea
-              required
               rows={4}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black resize-none"
+              onChange={(e) => {
+                setMessage(e.target.value);
+                if (error) setError(""); // clear error as they type
+              }}
+              className={`w-full rounded-xl border px-3 py-2 text-sm shadow-sm resize-none focus:outline-none focus:ring-1 ${
+                error
+                  ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                  : "border-gray-300 focus:border-black focus:ring-black"
+              }`}
               placeholder="Tell us what worked well and what could be improved..."
             />
           </div>
