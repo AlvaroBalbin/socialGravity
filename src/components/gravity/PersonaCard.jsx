@@ -7,33 +7,74 @@ export default function PersonaCard({ persona, metrics, position }) {
   const cardX = Math.min(Math.max(position.x, 120), 360);
   const cardY = position.y < 180 ? position.y + 40 : position.y - 200;
 
-  const watchTime =
-    typeof persona.watchTimeSeconds === 'number'
-      ? `${persona.watchTimeSeconds.toFixed(1)}s`
-      : metrics && typeof metrics.watchTimeSeconds === 'number'
-      ? `${metrics.watchTimeSeconds.toFixed(1)}s`
-      : '—';
+  // ---- Helpers ---------------------------------------------------------
 
-  const engagement =
-    typeof persona.engagement === 'number'
-      ? `${persona.engagement}%`
-      : metrics && typeof metrics.alignmentScorePercent === 'number'
-      ? `${Math.round(metrics.alignmentScorePercent)}%`
-      : '—';
+  const formatPercentFromProb = (prob) => {
+    if (prob == null || Number.isNaN(prob)) return '—';
+    const p = prob * 100;
+    if (p > 0 && p < 1) return `${p.toFixed(1)}%`; // 0.1–0.9
+    if (p < 10) return `${p.toFixed(1)}%`; // 1.0–9.9
+    return `${Math.round(p)}%`; // 10%+
+  };
 
+  // Persona-level like & swipe (prefer metrics; fall back to persona props)
+  const likeProb =
+    typeof metrics?.likeProbability === 'number'
+      ? metrics.likeProbability
+      : typeof persona?.likeProbability === 'number'
+      ? persona.likeProbability
+      : null;
+
+  const swipeProb =
+    typeof metrics?.swipeProbability === 'number'
+      ? metrics.swipeProbability
+      : typeof persona?.swipeProbability === 'number'
+      ? persona.swipeProbability
+      : null;
+
+  const likeDisplay = formatPercentFromProb(likeProb);
+  const swipeDisplay = formatPercentFromProb(swipeProb);
+
+  // Insight line
   let insight = null;
-  if (metrics && Array.isArray(metrics.qualitativeFeedback) && metrics.qualitativeFeedback.length > 0) {
+  if (
+    metrics &&
+    Array.isArray(metrics.qualitativeFeedback) &&
+    metrics.qualitativeFeedback.length > 0
+  ) {
     insight = metrics.qualitativeFeedback[0];
   }
   if (!insight) {
     insight = 'No insight available yet for this persona.';
   }
 
-  const tags = Array.isArray(persona.tags) && persona.tags.length
-    ? persona.tags
-    : metrics && metrics.emotionalKeywords
-    ? metrics.emotionalKeywords
-    : [];
+  // Tags / emotional keywords – only used as a LAST-RESORT fallback for description
+  const tags =
+    (Array.isArray(persona.tags) && persona.tags.length && persona.tags) ||
+    (metrics && metrics.emotionalKeywords) ||
+    [];
+
+  // --- One-sentence persona description ---------------------------------
+  let description =
+    // fields coming directly from edge function
+    persona.one_liner ||
+    persona.oneLiner ||
+    persona.one_line_summary ||
+    persona.description ||
+    // nested JSON variants (if persona_json was not flattened)
+    (persona.personaJson && persona.personaJson.one_liner) ||
+    (persona.persona_json && persona.persona_json.one_liner) ||
+    (persona.personaJson && persona.personaJson.one_line_summary) ||
+    (persona.persona_json && persona.persona_json.one_line_summary) ||
+    (persona.personaJson && persona.personaJson.description) ||
+    (persona.persona_json && persona.persona_json.description) ||
+    null;
+
+  // If still nothing, gently turn tags into a human sentence
+  if (!description && tags.length) {
+    const top = tags.slice(0, 3).join(', ');
+    description = `A ${top.toLowerCase()} type viewer.`;
+  }
 
   return (
     <div
@@ -45,31 +86,30 @@ export default function PersonaCard({ persona, metrics, position }) {
         animation: 'fadeIn 0.45s ease-out',
       }}
     >
-      <h3 className="font-semibold text-gray-900 text-sm mb-2.5">
-        {persona.displayName || persona.label || persona.name || persona.id}
+      <h3 className="font-semibold text-gray-900 text-sm mb-1.5">
+        {persona.displayName ||
+          persona.display_name ||
+          persona.label ||
+          persona.name ||
+          persona.id}
       </h3>
 
-      {/* Tags */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {tags.slice(0, 3).map((tag, index) => (
-            <span
-              key={index}
-              className="px-2.5 py-0.5 bg-gray-50 border border-gray-100 rounded-full text-[11px] text-gray-600"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
+      {/* One-sentence description instead of tags */}
+      {description && (
+        <p className="text-[11px] text-gray-600 mb-3 leading-snug">
+          {description}
+        </p>
       )}
 
-      {/* Stats */}
+      {/* Stats: Like % and Swipe % only */}
       <div className="space-y-0.5 mb-3">
         <p className="text-xs text-gray-500">
-          Watch time: <span className="text-gray-800 font-medium">{watchTime}</span>
+          Like rate:{' '}
+          <span className="text-gray-800 font-medium">{likeDisplay}</span>
         </p>
         <p className="text-xs text-gray-500">
-          Engagement: <span className="text-gray-800 font-medium">{engagement}</span>
+          Swipe rate:{' '}
+          <span className="text-gray-800 font-medium">{swipeDisplay}</span>
         </p>
       </div>
 

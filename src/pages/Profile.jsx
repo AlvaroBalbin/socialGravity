@@ -15,8 +15,11 @@ import DeleteSimulationDialog from "@/components/profile/DeleteSimulationDialog.
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 
-// 🔥 import your logo asset
+// Logo
 import sgLogoFull from "@/assets/sg-logo-full.jpg";
+
+// Feedback modal
+import FeedbackWidget from "@/components/feedback/FeedbackWidget";
 
 export default function Profile() {
   const [showModal, setShowModal] = useState(false);
@@ -29,12 +32,14 @@ export default function Profile() {
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading } = useAuth();
 
+  // Redirect if not logged in
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/login");
     }
   }, [isLoading, isAuthenticated, navigate]);
 
+  // Load simulations for this user
   useEffect(() => {
     if (!user) {
       setSimulations([]);
@@ -69,6 +74,7 @@ export default function Profile() {
     fetchSimulations();
   }, [user]);
 
+  // When the simulation wizard finishes
   const handleSimulationComplete = (data) => {
     setShowModal(false);
 
@@ -113,12 +119,14 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      {/* Simulation wizard */}
       <SimulationModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         onComplete={handleSimulationComplete}
       />
 
+      {/* Delete confirmation */}
       <DeleteSimulationDialog
         open={!!deleteTarget}
         simulationTitle={
@@ -131,10 +139,10 @@ export default function Profile() {
         loading={deleting}
       />
 
-      {/* 🔥 Header now receives the logo */}
+      {/* Top header with logo */}
       <ProfileHeader logoSrc={sgLogoFull} />
 
-      {/* slightly smaller bottom padding so cards sit nearer viewport bottom */}
+      {/* Main content */}
       <main className="max-w-6xl mx-auto px-6 pb-0 w-full flex-1">
         <section
           className="mt-4"
@@ -145,18 +153,23 @@ export default function Profile() {
               Saved Simulations
             </h2>
 
-            <button
-              onClick={() => setShowModal(true)}
-              className="px-4 py-1.5 text-xs font-medium rounded-full border border-gray-900 text-gray-900 hover:shadow-sm transition"
-            >
-              Run Simulation
-            </button>
+            {/* Right-side actions: Run sim + Feedback */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-4 py-1.5 text-xs font-medium rounded-full border border-gray-900 text-gray-900 hover:shadow-sm transition"
+              >
+                Run Simulation
+              </button>
+
+              {/* Feedback button (opens anonymous feedback modal) */}
+              <FeedbackWidget buttonLabel="Give Feedback" size="sm" />
+            </div>
           </div>
 
           <div className="flex items-start gap-8">
-            {/* LEFT LIST */}
+            {/* LEFT: simulations list */}
             <div className="flex-1 relative mb-2">
-              {/* fixed-height card, internal scroll */}
               <div
                 className="
                   h-[calc(100vh-220px)]
@@ -190,12 +203,12 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Top + bottom gradient fades over the card */}
+              {/* scroll fades */}
               <div className="pointer-events-none absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent rounded-t-xl" />
               <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent rounded-b-xl" />
             </div>
 
-            {/* RIGHT ANALYTICS */}
+            {/* RIGHT: analytics */}
             <div className="hidden lg:block w-80 shrink-0">
               <ProfileAnalyticsPanel />
             </div>
