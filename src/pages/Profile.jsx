@@ -15,6 +15,9 @@ import DeleteSimulationDialog from "@/components/profile/DeleteSimulationDialog.
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 
+// 🔥 import your logo asset
+import sgLogoFull from "@/assets/sg-logo-full.jpg";
+
 export default function Profile() {
   const [showModal, setShowModal] = useState(false);
   const [simulations, setSimulations] = useState([]);
@@ -128,7 +131,8 @@ export default function Profile() {
         loading={deleting}
       />
 
-      <ProfileHeader />
+      {/* 🔥 Header now receives the logo */}
+      <ProfileHeader logoSrc={sgLogoFull} />
 
       {/* slightly smaller bottom padding so cards sit nearer viewport bottom */}
       <main className="max-w-6xl mx-auto px-6 pb-0 w-full flex-1">

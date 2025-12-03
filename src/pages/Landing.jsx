@@ -10,6 +10,7 @@ import WhyItMattersSection from "@/components/landing/WhyItMattersSection";
 import FAQSection from "@/components/landing/FAQSection";
 import CTASection from "@/components/landing/CTASection";
 import Footer from "@/components/landing/Footer";
+import sgLogoFull from "@/assets/sg-logo-full.jpg";
 
 import SimulationModal from "@/components/simulation/SimulationModal";
 import { createPageUrl } from "@/utils";
@@ -40,7 +41,8 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-white">
       {/* Global header */}
-      <StickyHeader />
+      <StickyHeader logoSrc={sgLogoFull} />
+
 
       {/* Hero/sections – we pass the "run simulation" action into the hero + CTA */}
       <HeroSection onRunSimulation={openSimulationModal} />

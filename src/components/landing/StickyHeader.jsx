@@ -1,10 +1,10 @@
-// src/components/landing/StickyHeader.jsx (or wherever it lives)
+// src/components/landing/StickyHeader.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useAuth } from "@/lib/AuthContext";
 
-export default function StickyHeader() {
+export default function StickyHeader({ logoSrc }) {
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -20,10 +20,8 @@ export default function StickyHeader() {
 
   const handleAccountClick = () => {
     if (isAuthenticated) {
-      // Logged in → go straight to profile
       navigate(createPageUrl("Profile"));
     } else {
-      // Not logged in → go to login page
       navigate("/login");
     }
   };
@@ -32,7 +30,7 @@ export default function StickyHeader() {
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out"
       style={{
-        padding: scrolled ? "12px 24px" : "20px 24px",
+        padding: scrolled ? "10px 24px" : "14px 24px", // ⬅️ slimmer navbar
         backgroundColor: scrolled
           ? "rgba(255, 255, 255, 0.92)"
           : "rgba(255, 255, 255, 0)",
@@ -46,12 +44,26 @@ export default function StickyHeader() {
         {/* Logo */}
         <Link
           to={createPageUrl("Landing")}
-          className="text-lg font-medium text-gray-900 tracking-tight transition-all duration-300"
-          style={{
-            fontSize: scrolled ? "16px" : "18px",
-          }}
+          className="flex items-center gap-2 cursor-pointer"
         >
-          Social Gravity
+          {logoSrc ? (
+            <img
+              src={logoSrc}
+              alt="Social Gravity"
+              className="transition-all duration-300 object-contain"
+              style={{
+                height: scrolled ? 40 : 48, // ⬅️ smaller but still readable
+                width: "auto",
+              }}
+            />
+          ) : (
+            <span
+              className="text-lg font-medium text-gray-900 tracking-tight transition-all duration-300"
+              style={{ fontSize: scrolled ? "16px" : "18px" }}
+            >
+              Social Gravity
+            </span>
+          )}
         </Link>
 
         {/* Navigation */}
