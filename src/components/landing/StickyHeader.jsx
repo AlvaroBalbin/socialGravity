@@ -30,9 +30,9 @@ export default function StickyHeader({ logoSrc }) {
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out"
       style={{
-        padding: scrolled ? "10px 24px" : "14px 24px", // ⬅️ slimmer navbar
+        padding: scrolled ? "8px 24px" : "12px 24px",
         backgroundColor: scrolled
-          ? "rgba(255, 255, 255, 0.92)"
+          ? "rgba(255, 255, 255, 0.96)"
           : "rgba(255, 255, 255, 0)",
         backdropFilter: scrolled ? "blur(12px)" : "none",
         boxShadow: scrolled
@@ -52,7 +52,7 @@ export default function StickyHeader({ logoSrc }) {
               alt="Social Gravity"
               className="transition-all duration-300 object-contain"
               style={{
-                height: scrolled ? 40 : 48, // ⬅️ smaller but still readable
+                height: scrolled ? 40 : 48, // ⬅️ new, much smaller
                 width: "auto",
               }}
             />
@@ -135,7 +135,7 @@ export default function StickyHeader({ logoSrc }) {
           onClick={handleAccountClick}
           className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-full hover:bg-gray-800 transition-all duration-300"
           style={{
-            padding: scrolled ? "8px 16px" : "10px 20px",
+            padding: scrolled ? "8px 16px" : "9px 18px",
             fontSize: scrolled ? "13px" : "14px",
           }}
         >

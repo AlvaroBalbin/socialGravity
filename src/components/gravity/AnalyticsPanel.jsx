@@ -418,6 +418,15 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
     },
   ];
 
+  // Persona like % for subtitle
+  const personaLikeProb = isPersonaView
+    ? engagementSource.likeProbability
+    : null;
+  const personaLikePercent =
+    personaLikeProb != null && !Number.isNaN(personaLikeProb)
+      ? formatPercentFromProb(personaLikeProb)
+      : '–';
+
   const swipeProb = pct(
     isPersonaView
       ? personaMetrics.swipeProbability
@@ -500,19 +509,6 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const storyPreviewActions = storytelling.improvement_actions.slice(0, 3);
   const editingPreviewActions = editing.improvement_actions.slice(0, 3);
 
-  // Persona extra info for metrics (not layout-changing)
-  const personaWatchTimeStr =
-    personaMetrics?.watchTimeSeconds == null
-      ? '–'
-      : `${personaMetrics.watchTimeSeconds.toFixed(1)}s`;
-
-  const personaWatchPercent =
-    videoDuration && personaMetrics?.watchTimeSeconds != null
-      ? Math.round(
-          Math.min(personaMetrics.watchTimeSeconds / videoDuration, 1) * 100
-        )
-      : null;
-
   return (
     <div className="w-full space-y-4">
       {/* 1) OVERALL / PERSONA FIT – top card */}
@@ -561,17 +557,14 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
           {isPersonaView && (
             <p className="text-[11px] text-gray-400 mt-2">
-              Persona match:{' '}
+              Like:{' '}
               <span className="text-gray-800 font-medium">
-                {personaMatch != null ? `${personaMatch}%` : '–'}
+                {personaLikePercent}
               </span>{' '}
-              • Watch:{' '}
+              • Swipe:{' '}
               <span className="text-gray-800 font-medium">
-                {personaWatchTimeStr}
+                {swipeProb != null ? `${swipeProb}%` : '–'}
               </span>
-              {personaWatchPercent != null && (
-                <span className="text-gray-400"> ({personaWatchPercent}%)</span>
-              )}
             </p>
           )}
         </div>
@@ -681,7 +674,53 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         )}
       </div>
 
-      {/* 4) ENGAGEMENT PROBABILITIES */}
+      {/* 4) ATTENTION METRICS + RETENTION  (ABOVE ENGAGEMENT) */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
+        <h3 className="text-sm font-semibold text-gray-900 mb-5">
+          Attention Metrics
+        </h3>
+
+        {/* Swipe Probability */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-600">Swipe Probability</span>
+            <span className="text-xs font-semibold text-gray-900 tabular-nums">
+              {swipeProb != null ? `${swipeProb}%` : '–'}
+            </span>
+          </div>
+          <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${swipeProb ?? 0}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Predicted Watch Time */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-600">
+              Predicted Watch Time
+            </span>
+            <div className="text-right">
+              <span className="text-xs font-semibold text-gray-900">
+                {predictedWatchTime}
+              </span>
+              <p className="text-[10px] text-gray-400">
+                {watchTimePercent != null ? `${watchTimePercent}%` : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Retention Curve */}
+        <RetentionCurve
+          retentionCurve={retentionCurve}
+          videoDuration={videoDuration || 12}
+        />
+      </div>
+
+      {/* 5) ENGAGEMENT PROBABILITIES  (NOW BELOW ATTENTION) */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
         <h3 className="text-sm font-semibold text-gray-900 mb-5">
           {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
@@ -720,50 +759,6 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
             );
           })}
         </div>
-      </div>
-
-      {/* 5) ATTENTION METRICS + RETENTION */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
-        <h3 className="text-sm font-semibold text-gray-900 mb-5">
-          Attention Metrics
-        </h3>
-
-        {/* Swipe Probability */}
-        <div className="mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-600">Swipe Probability</span>
-            <span className="text-xs font-semibold text-gray-900 tabular-nums">
-              {swipeProb != null ? `${swipeProb}%` : '–'}
-            </span>
-          </div>
-          <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${swipeProb ?? 0}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Predicted Watch Time */}
-        <div className="mb-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-600">Predicted Watch Time</span>
-            <div className="text-right">
-              <span className="text-xs font-semibold text-gray-900">
-                {predictedWatchTime}
-              </span>
-              <p className="text-[10px] text-gray-400">
-                {watchTimePercent != null ? `${watchTimePercent}%` : ''}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Retention Curve */}
-        <RetentionCurve
-          retentionCurve={retentionCurve}
-          videoDuration={videoDuration || 12}
-        />
       </div>
 
       {/* MODALS FOR EXPANDED INSIGHTS */}
