@@ -15,7 +15,8 @@ import {
 } from "react-router-dom";
 import PageNotFound from "./lib/PageNotFound";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
-import Login from "@/pages/Login"; // <- magic-link login page we added
+import Login from "@/pages/Login"; // magic-link login page
+import AdminPage from "@/pages/AdminPage"; // 🆕 our admin page
 
 const { Pages, Layout, mainPage } = pagesConfig;
 
@@ -35,12 +36,14 @@ const AuthenticatedApp = () => {
   // Debug: see what's happening in the console
   console.log("Auth loading?", isLoading, "user:", user?.id);
 
-  // ⚠️ IMPORTANT: do NOT block on isLoading here anymore.
-  // Individual pages will check auth and redirect/guard themselves.
+  // NOTE: we don't block on isLoading here; pages handle auth themselves
   return (
     <Routes>
       {/* Login page WITHOUT main layout */}
       <Route path="/login" element={<Login />} />
+
+      {/* 🆕 Admin dashboard (has its own layout + gate) */}
+      <Route path="/admin" element={<AdminPage />} />
 
       {/* Main page with layout */}
       <Route
