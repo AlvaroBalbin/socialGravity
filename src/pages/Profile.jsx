@@ -16,7 +16,7 @@ import { supabase } from "../supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 
 // Logo
-import sgLogoFull from "@/assets/sg-logo-full.jpg";
+import sgLogoFull from "@/assets/sg-logo-full.png";
 
 // Feedback modal
 import FeedbackWidget from "@/components/feedback/FeedbackWidget";

@@ -10,7 +10,7 @@ import WhyItMattersSection from "@/components/landing/WhyItMattersSection";
 import FAQSection from "@/components/landing/FAQSection";
 import CTASection from "@/components/landing/CTASection";
 import Footer from "@/components/landing/Footer";
-import sgLogoFull from "@/assets/sg-logo-full.jpg";
+import sgLogoFull from "@/assets/sg-logo-full.png";
 
 import SimulationModal from "@/components/simulation/SimulationModal";
 import { createPageUrl } from "@/utils";

@@ -11,6 +11,13 @@ import {
 
 // ---- Helpers -------------------------------------------------------------
 
+// persona label -> max 2 words
+function getTwoWordLabel(label) {
+  if (!label || typeof label !== 'string') return '';
+  const parts = label.trim().split(/\s+/);
+  return parts.slice(0, 2).join(' ');
+}
+
 // seconds -> "mm:ss"
 function formatTimestamp(seconds) {
   if (seconds == null || Number.isNaN(seconds)) return '0:00';
@@ -360,6 +367,8 @@ function getEngagementBarWidth(label, prob) {
 export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [showEditingModal, setShowEditingModal] = useState(false);
+  const [showAttentionMethod, setShowAttentionMethod] = useState(false);
+  const [showEngagementMethod, setShowEngagementMethod] = useState(false);
 
   if (!simulation) return null;
 
@@ -392,56 +401,14 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const dialScore =
     isPersonaView && personaMatch != null ? personaMatch : overallScore;
 
-  const selectedPersonaLabel =
+  const rawPersonaLabel =
     selectedPersona?.label ||
     selectedPersona?.name ||
     selectedPersona?.displayName ||
     'Selected persona';
 
-  // ---- Post / don't-post bands (black → white strip) -------------------
-  const postingBands = [
-    {
-      id: 'rework',
-      min: 0,
-      max: 49,
-      shade: 'bg-gray-200',
-      label: 'Rework before posting',
-      description:
-        'Score below 50 – treat this as a draft. Rework the hook and clarity before posting.',
-    },
-    {
-      id: 'test',
-      min: 50,
-      max: 69,
-      shade: 'bg-gray-300',
-      label: 'Test with a small audience',
-      description:
-        'Decent but uneven. A/B test with a smaller audience before you fully ship.',
-    },
-    {
-      id: 'post',
-      min: 70,
-      max: 84,
-      shade: 'bg-gray-500',
-      label: 'Good to post',
-      description:
-        'Strong overall performance. Safe to post to your main audience as is.',
-    },
-    {
-      id: 'banger',
-      min: 85,
-      max: 100,
-      shade: 'bg-gray-900',
-      label: 'Must post',
-      description:
-        'Top-tier fit. Prioritise posting and consider boosting this video.',
-    },
-  ];
-
-  const activeBand =
-    postingBands.find(
-      (band) => dialScore >= band.min && dialScore <= band.max
-    ) || postingBands[0];
+  const selectedPersonaLabel =
+    getTwoWordLabel(rawPersonaLabel) || 'Selected persona';
 
   // Engagement data source: persona vs general
   const engagementSource = isPersonaView ? personaMetrics : general;
@@ -576,94 +543,67 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const storyPreviewActions = storytelling.improvement_actions.slice(0, 3);
   const editingPreviewActions = editing.improvement_actions.slice(0, 3);
 
+  // ---- Overall spectrum summary sentence --------------------------------
+  let fitWord = 'mixed';
+  if (dialScore < 50) fitWord = 'weak';
+  else if (dialScore >= 70 && dialScore < 85) fitWord = 'strong';
+  else if (dialScore >= 85) fitWord = 'standout';
+
+  const overallSummaryText = `This looks like a ${fitWord} fit for your overall audience.`;
+  const personaSummaryText = `This looks like a ${fitWord} fit for ${selectedPersonaLabel}.`;
+
+  const markerPosition = `${Math.min(Math.max(dialScore, 0), 100)}%`;
+  const isDarkSide = dialScore >= 50; // 0–49 = light side, 50–100 = dark side
+
   return (
     <div className="w-full space-y-4">
-      {/* 1) OVERALL / PERSONA FIT – top card */}
+      {/* 1) OVERALL / PERSONA FIT – simplified spectrum card */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm w-full">
-        <div className="flex flex-col items-center">
-          <div className="relative w-28 h-28 mb-4">
-            <svg
-              className="w-full h-full transform -rotate-90"
-              viewBox="0 0 100 100"
-            >
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
-                stroke="#f5f5f5"
-                strokeWidth="6"
+        <div className="flex flex-col items-center text-center">
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-[0.12em]">
+            {isPersonaView ? `${selectedPersonaLabel} fit` : 'Overall audience fit'}
+          </span>
+
+          <div className="mt-3 text-4xl font-semibold text-gray-900 tabular-nums">
+            {dialScore}
+          </div>
+          <span className="text-[11px] text-gray-400">Score out of 100</span>
+
+          {/* Spectrum gradient */}
+          <div className="mt-5 w-full max-w-sm">
+            <div className="relative h-1.5 rounded-full overflow-hidden bg-gradient-to-r from-white via-gray-400 to-black">
+              {/* Tick marker: black on left half, white on right half */}
+              <div
+                style={{ left: markerPosition }}
+                className={`absolute top-0 -translate-x-1/2 h-full w-[2px] rounded-full ${
+                  isDarkSide ? 'bg-white' : 'bg-black'
+                }`}
               />
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
-                stroke="#262626"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={`${dialScore * 2.64} 264`}
-                className="transition-all duration-700 ease-out"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-semibold text-gray-900">
-                {dialScore}
-              </span>
-              <span className="text-[10px] text-gray-400 font-medium">
-                /100
-              </span>
+            </div>
+
+            <div className="flex justify-between mt-1.5 text-[10px] text-gray-400">
+              <span>Reconsider</span>
+              <span>Great</span>
             </div>
           </div>
 
-          <p className="text-sm text-gray-500">
-            {isPersonaView
-              ? `${selectedPersonaLabel} Fit`
-              : 'Overall Audience Fit'}
+          {/* One-sentence summary */}
+          <p className="mt-3 text-[11px] text-gray-500 leading-snug">
+            {isPersonaView ? personaSummaryText : overallSummaryText}
           </p>
 
           {isPersonaView && (
             <p className="text-[11px] text-gray-400 mt-2">
-              Like:{' '}
+              Like{' '}
               <span className="text-gray-800 font-medium">
                 {personaLikePercent}
               </span>{' '}
-              • Swipe:{' '}
+              • Swipe{' '}
               <span className="text-gray-800 font-medium">
                 {swipeProb != null ? `${swipeProb}%` : '–'}
               </span>
             </p>
           )}
-
-          {/* Should you post this? strip */}
-          <div className="mt-5 w-full max-w-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-medium text-gray-700">
-                Should you post this?
-              </span>
-              <span className="text-[11px] text-gray-500 text-right">
-                {activeBand.label}
-              </span>
-            </div>
-            <div className="flex gap-1.5 mb-2">
-              {postingBands.map((band) => {
-                const isActive = band.id === activeBand.id;
-                return (
-                  <div
-                    key={band.id}
-                    className={`flex-1 h-2.5 rounded-full ${band.shade} relative overflow-hidden`}
-                  >
-                    {isActive && (
-                      <div className="absolute inset-0 rounded-full ring-1 ring-gray-900" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-[11px] text-gray-500 leading-snug">
-              {activeBand.description}
-            </p>
-          </div>
         </div>
       </div>
 
@@ -675,7 +615,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
               Storytelling Insights
             </h3>
             <p className="text-[11px] text-gray-400">
-              How your hook, ideas and narrative land with viewers.
+              Your hook, ideas and narrative.
             </p>
           </div>
           {(storySummary.length ||
@@ -726,7 +666,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
               Editing Style Insights
             </h3>
             <p className="text-[11px] text-gray-400">
-              How pacing, cuts and visual style affect attention.
+              Your pacing, cuts and visual style.
             </p>
           </div>
           {(editingSummary.length ||
@@ -771,14 +711,30 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
       {/* 4) ATTENTION METRICS + RETENTION  (ABOVE ENGAGEMENT) */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
-        <div className="mb-4">
-          <h3 className="text-sm font-semibold text-gray-900">
-            Attention Metrics
-          </h3>
-          <p className="text-[11px] text-gray-400">
-            How likely people are to stop scrolling and how long they stay.
-          </p>
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Attention Metrics
+            </h3>
+            <p className="text-[11px] text-gray-400">
+              How likely they swipe and when.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAttentionMethod((v) => !v)}
+            className="text-[10px] font-medium text-gray-500 hover:text-gray-900 underline-offset-2 hover:underline"
+          >
+            How do we know?
+          </button>
         </div>
+
+        {showAttentionMethod && (
+          <p className="text-[10px] text-gray-400 mb-4">
+            We estimate attention using models trained on thousands of short-form
+            videos, combining your script, visuals and pacing with historical
+            watch-time and scroll data.
+          </p>
+        )}
 
         {/* Swipe Probability */}
         <div className="mb-5">
@@ -822,14 +778,30 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
       {/* 5) ENGAGEMENT PROBABILITIES  (NOW BELOW ATTENTION) */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
-        <div className="mb-4">
-          <h3 className="text-sm font-semibold text-gray-900">
-            {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
-          </h3>
-          <p className="text-[11px] text-gray-400">
-            Likelihood of likes, comments, shares, saves and follows.
-          </p>
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">
+              {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
+            </h3>
+            <p className="text-[11px] text-gray-400">
+              How likely viewers engage.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowEngagementMethod((v) => !v)}
+            className="text-[10px] font-medium text-gray-500 hover:text-gray-900 underline-offset-2 hover:underline"
+          >
+            How do we know?
+          </button>
         </div>
+
+        {showEngagementMethod && (
+          <p className="text-[10px] text-gray-400 mb-4">
+            Engagement is predicted from patterns in similar posts and audiences:
+            we model how viewers with matching interests have historically liked,
+            commented, shared, saved and followed after watching content like this.
+          </p>
+        )}
 
         <div className="space-y-4">
           {engagementData.map((item) => {
