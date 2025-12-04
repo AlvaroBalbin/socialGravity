@@ -12,8 +12,15 @@ export default function DeleteSimulationDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 max-w-sm w-full mx-4 p-6">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+        onClick={loading ? undefined : onCancel}
+      />
+
+      {/* Dialog card */}
+      <div className="relative z-[1000] bg-white rounded-2xl shadow-xl border border-gray-200 max-w-sm w-full mx-4 p-6">
         {/* Title */}
         <div className="text-xs font-medium tracking-wide text-gray-400 uppercase mb-3">
           Delete Simulation
@@ -28,7 +35,8 @@ export default function DeleteSimulationDialog({
         </p>
 
         <p className="text-xs text-gray-500 mb-6">
-          This action cannot be undone. The simulation and all insights will be permanently removed.
+          This action cannot be undone. The simulation and all insights will be
+          permanently removed.
         </p>
 
         {/* Buttons */}

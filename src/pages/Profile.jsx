@@ -28,6 +28,7 @@ export default function Profile() {
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteSuccess, setDeleteSuccess] = useState(false); // ✅ new
 
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -93,24 +94,32 @@ export default function Profile() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !user) return;
 
     setDeleting(true);
 
-    const { error } = await supabase
-      .from("simulations")
-      .delete()
-      .eq("id", deleteTarget.id);
+    try {
+      const { error } = await supabase
+        .from("simulations")
+        .delete()
+        .match({ id: deleteTarget.id, user_id: user.id });
 
-    if (error) {
-      alert("Couldn't delete simulation.");
+      if (error) {
+        console.error("❌ Failed to delete simulation:", error);
+        alert(`Couldn't delete simulation: ${error.message}`);
+        return;
+      }
+
+      // Remove from UI
+      setSimulations((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      setDeleteTarget(null);
+
+      // ✅ show slick success toast
+      setDeleteSuccess(true);
+      setTimeout(() => setDeleteSuccess(false), 2500);
+    } finally {
       setDeleting(false);
-      return;
     }
-
-    setSimulations((prev) => prev.filter((s) => s.id !== deleteTarget.id));
-    setDeleting(false);
-    setDeleteTarget(null);
   };
 
   const handleCancelDelete = () => {
@@ -126,7 +135,7 @@ export default function Profile() {
         onComplete={handleSimulationComplete}
       />
 
-      {/* Delete confirmation */}
+      {/* Delete confirmation dialog */}
       <DeleteSimulationDialog
         open={!!deleteTarget}
         simulationTitle={
@@ -138,6 +147,20 @@ export default function Profile() {
         onConfirm={handleConfirmDelete}
         loading={deleting}
       />
+
+      {/* ✅ Deletion success toast */}
+      {deleteSuccess && (
+        <div
+          className="
+            fixed top-4 right-4 z-[200]
+            bg-gray-900 text-white text-[11px]
+            px-3 py-1.5 rounded-lg shadow-lg
+            animate-fade-in-out pointer-events-none
+          "
+        >
+          Simulation deleted
+        </div>
+      )}
 
       {/* Top header with logo */}
       <ProfileHeader logoSrc={sgLogoFull} />
@@ -250,6 +273,18 @@ export default function Profile() {
 
         .premium-scroll::-webkit-scrollbar-thumb:hover {
           background: rgba(0, 0, 0, 0.28);
+        }
+
+        /* ✅ shared fadeInOut animation (used by toasts) */
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translateY(-4px); }
+          15% { opacity: 1; transform: translateY(0); }
+          85% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-4px); }
+        }
+
+        .animate-fade-in-out {
+          animation: fadeInOut 2.5s ease forwards;
         }
       `}</style>
     </div>

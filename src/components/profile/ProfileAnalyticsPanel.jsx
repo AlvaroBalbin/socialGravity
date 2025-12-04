@@ -144,10 +144,20 @@ export default function ProfileAnalyticsPanel() {
                 type="button"
                 onClick={loadInsights}
                 disabled={loading || !user}
-                className="text-[10px] px-3 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="
+                  text-[10px] px-3 py-1 rounded-full
+                  border border-gray-300
+                  text-gray-700
+                  bg-white
+                  hover:bg-gray-100
+                  active:scale-95
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition
+                "
               >
                 {loading ? "Refreshing…" : "Refresh"}
               </button>
+
             </div>
           </div>
 

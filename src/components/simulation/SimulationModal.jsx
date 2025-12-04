@@ -307,7 +307,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                       type="text"
                       value={simulationTitle}
                       onChange={(e) => setSimulationTitle(e.target.value)}
-                      placeholder="e.g. Hook Test - Skincare Gen-Z TikTok"
+                      placeholder="Who’s on the other side of the screen? "
                       className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-300 transition-colors"
                     />
                   </div>
@@ -320,7 +320,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                   <textarea
                     value={audienceDescription}
                     onChange={(e) => setAudienceDescription(e.target.value)}
-                    placeholder="My audience is mostly late teens to mid-20s in the UK and US. It’s a mix of students and young professionals who follow me for my personality and chaotic energy. They’re into gym content, self-improvement, uni life, dating, and anything relatable or low-effort funny."
+                    placeholder="Describe the audience you want to test this content with."
                     className="w-full h-32 p-4 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-gray-300 transition-colors"
                   />
 

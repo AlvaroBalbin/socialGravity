@@ -1,19 +1,20 @@
 // src/components/profile/SimulationRow.jsx
 
 import React, { useState } from "react";
-import { Trash2, Share2 } from "lucide-react";
+import { Trash2, Copy } from "lucide-react";
 
 export default function SimulationRow({ simulation, onOpen, onDelete }) {
   const [copied, setCopied] = useState(false);
 
   const createdAt = simulation.created_at
-    ? new Date(simulation.created_at).toLocaleString()
+    ? new Date(simulation.created_at).toLocaleString([], {
+        dateStyle: "short",
+        timeStyle: "short",
+      })
     : "Unknown date";
 
   const title =
-    simulation.title ||
-    simulation.audience_prompt ||
-    "Untitled simulation";
+    simulation.title || simulation.audience_prompt || "Untitled simulation";
 
   const status = simulation.status || "complete";
 
@@ -38,7 +39,7 @@ export default function SimulationRow({ simulation, onOpen, onDelete }) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative mb-2 last:mb-0">
       {/* Toast */}
       {copied && (
         <div
@@ -56,7 +57,15 @@ export default function SimulationRow({ simulation, onOpen, onDelete }) {
       <button
         type="button"
         onClick={onOpen}
-        className="group w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 hover:border-gray-300 hover:shadow-sm transition text-left bg-white"
+        className="
+          group w-full flex items-center justify-between 
+          px-4 py-3 rounded-xl border border-gray-100 
+          bg-white 
+          hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm 
+          active:scale-[0.98]
+          transition
+          text-left
+        "
       >
         <div className="flex-1">
           <div className="text-sm font-medium text-gray-900 line-clamp-1">
@@ -81,14 +90,21 @@ export default function SimulationRow({ simulation, onOpen, onDelete }) {
         </div>
 
         <div className="flex items-center gap-2 ml-4">
-          {/* Share */}
+          {/* Copy link */}
           <button
             type="button"
             onClick={handleShare}
-            className="inline-flex items-center justify-center rounded-full p-1.5 text-gray-300 hover:text-emerald-600 hover:bg-emerald-50 transition-opacity opacity-0 group-hover:opacity-100"
-            aria-label="Copy share link"
+            className="
+              inline-flex items-center justify-center 
+              rounded-full p-1.5
+              text-gray-500 border border-transparent
+              hover:text-gray-900 hover:bg-gray-100 hover:border-gray-900
+              active:scale-95
+              transition
+            "
+            aria-label="Copy link"
           >
-            <Share2 className="w-4 h-4" />
+            <Copy className="w-4 h-4" />
           </button>
 
           {/* Delete */}
@@ -98,7 +114,14 @@ export default function SimulationRow({ simulation, onOpen, onDelete }) {
               e.stopPropagation();
               onDelete?.();
             }}
-            className="inline-flex items-center justify-center rounded-full p-1.5 text-gray-300 hover:text-red-600 hover:bg-red-50 transition-opacity opacity-0 group-hover:opacity-100"
+            className="
+              inline-flex items-center justify-center 
+              rounded-full p-1.5
+              text-gray-400 border border-transparent
+              hover:text-gray-900 hover:bg-gray-100 hover:border-gray-900
+              active:scale-95
+              transition
+            "
             aria-label="Delete simulation"
           >
             <Trash2 className="w-4 h-4" />

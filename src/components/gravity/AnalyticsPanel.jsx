@@ -30,27 +30,35 @@ function RetentionCurve({ retentionCurve = [], videoDuration = 12 }) {
   return (
     <div>
       <span className="text-xs text-gray-600 block mb-3">Retention Curve</span>
-      <div className="flex items-end gap-1 h-8 relative">
+
+      {/* Taller, chunkier monochrome bars */}
+      <div className="flex items-end gap-1.5 h-16 relative px-1">
         {retentionCurve.map((rawValue, index) => {
           const value = Math.max(0, Math.min(rawValue ?? 0, 1)); // clamp 0–1
           const valuePct = Math.round(value * 100);
 
+          // never make the bar visually tiny if there is *some* retention
+          const barHeightPct = valuePct === 0 ? 6 : Math.max(valuePct, 14);
+
           const startTime = (index * segmentDuration).toFixed(1);
           const endTime = ((index + 1) * segmentDuration).toFixed(1);
+
+          const isHovered = hoveredIndex === index;
 
           return (
             <div
               key={index}
-              className="flex-1 bg-gray-700 rounded-sm transition-all duration-300 cursor-pointer hover:opacity-100 relative"
+              className="flex-1 rounded-md bg-gray-900 cursor-pointer transition-all duration-300 relative"
               style={{
-                height: `${valuePct}%`,
-                opacity:
-                  hoveredIndex === index ? 1 : 0.4 + (valuePct / 100) * 0.6,
+                height: `${barHeightPct}%`,
+                opacity: isHovered
+                  ? 1
+                  : 0.35 + (valuePct / 100) * 0.55, // darker where retention is higher
               }}
               onMouseEnter={() => setHoveredIndex(index)}
               onMouseLeave={() => setHoveredIndex(null)}
             >
-              {hoveredIndex === index && (
+              {isHovered && (
                 <div
                   className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-white border border-gray-200 rounded-lg shadow-md whitespace-nowrap z-10 pointer-events-none"
                   style={{ animation: 'fadeIn 0.15s ease-out' }}
@@ -67,6 +75,7 @@ function RetentionCurve({ retentionCurve = [], videoDuration = 12 }) {
           );
         })}
       </div>
+
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateX(-50%) translateY(4px); }
@@ -289,6 +298,19 @@ function InsightsModal({ title, buckets, onClose }) {
   );
 }
 
+// Minimal “View details” link-style button
+function ViewDetailsButton({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-900 hover:underline"
+    >
+      <Maximize2 className="w-3 h-3" />
+      <span>View details</span>
+    </button>
+  );
+}
+
 // ---- Engagement UI helpers -------------------------------------------
 
 // These match your backend ENGAGEMENT_RANGES (fractions 0–1)
@@ -375,6 +397,51 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
     selectedPersona?.name ||
     selectedPersona?.displayName ||
     'Selected persona';
+
+  // ---- Post / don't-post bands (black → white strip) -------------------
+  const postingBands = [
+    {
+      id: 'rework',
+      min: 0,
+      max: 49,
+      shade: 'bg-gray-200',
+      label: 'Rework before posting',
+      description:
+        'Score below 50 – treat this as a draft. Rework the hook and clarity before posting.',
+    },
+    {
+      id: 'test',
+      min: 50,
+      max: 69,
+      shade: 'bg-gray-300',
+      label: 'Test with a small audience',
+      description:
+        'Decent but uneven. A/B test with a smaller audience before you fully ship.',
+    },
+    {
+      id: 'post',
+      min: 70,
+      max: 84,
+      shade: 'bg-gray-500',
+      label: 'Good to post',
+      description:
+        'Strong overall performance. Safe to post to your main audience as is.',
+    },
+    {
+      id: 'banger',
+      min: 85,
+      max: 100,
+      shade: 'bg-gray-900',
+      label: 'Must post',
+      description:
+        'Top-tier fit. Prioritise posting and consider boosting this video.',
+    },
+  ];
+
+  const activeBand =
+    postingBands.find(
+      (band) => dialScore >= band.min && dialScore <= band.max
+    ) || postingBands[0];
 
   // Engagement data source: persona vs general
   const engagementSource = isPersonaView ? personaMetrics : general;
@@ -567,31 +634,60 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
               </span>
             </p>
           )}
+
+          {/* Should you post this? strip */}
+          <div className="mt-5 w-full max-w-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-medium text-gray-700">
+                Should you post this?
+              </span>
+              <span className="text-[11px] text-gray-500 text-right">
+                {activeBand.label}
+              </span>
+            </div>
+            <div className="flex gap-1.5 mb-2">
+              {postingBands.map((band) => {
+                const isActive = band.id === activeBand.id;
+                return (
+                  <div
+                    key={band.id}
+                    className={`flex-1 h-2.5 rounded-full ${band.shade} relative overflow-hidden`}
+                  >
+                    {isActive && (
+                      <div className="absolute inset-0 rounded-full ring-1 ring-gray-900" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-gray-500 leading-snug">
+              {activeBand.description}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* 2) STORYTELLING – summary + expand */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">
-            Storytelling Insights
-          </h3>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Storytelling Insights
+            </h3>
+            <p className="text-[11px] text-gray-400">
+              How your hook, ideas and narrative land with viewers.
+            </p>
+          </div>
           {(storySummary.length ||
             storytelling.what_worked.length ||
             storytelling.improvement_actions.length) && (
-            <button
-              onClick={() => setShowStoryModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50"
-            >
-              <Maximize2 className="w-3 h-3" />
-              View details
-            </button>
+            <ViewDetailsButton onClick={() => setShowStoryModal(true)} />
           )}
         </div>
 
         {storyPreviewActions.length ? (
           // Show timestamped preview actions if we have them
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 mt-2">
             {storyPreviewActions.map((item, index) => (
               <div key={index} className="flex items-start gap-2">
                 <span className="mt-[1px] inline-flex items-center justify-center px-1.5 py-[1px] rounded-full border border-gray-200 bg-gray-50 text-[9px] font-mono text-gray-500">
@@ -605,7 +701,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
           </div>
         ) : storySummary.length ? (
           // Fallback: plain text bullets
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 mt-2">
             {storySummary.map((insight, index) => (
               <div key={index} className="flex items-start gap-2">
                 <span className="text-gray-300 text-xs leading-none">•</span>
@@ -616,7 +712,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 mt-2">
             Storytelling feedback will appear here once analysis completes.
           </p>
         )}
@@ -624,26 +720,25 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
       {/* 3) EDITING – summary + expand */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">
-            Editing Style Insights
-          </h3>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Editing Style Insights
+            </h3>
+            <p className="text-[11px] text-gray-400">
+              How pacing, cuts and visual style affect attention.
+            </p>
+          </div>
           {(editingSummary.length ||
             editing.what_worked.length ||
             editing.improvement_actions.length) && (
-            <button
-              onClick={() => setShowEditingModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-gray-200 text-[11px] text-gray-600 hover:bg-gray-50"
-            >
-              <Maximize2 className="w-3 h-3" />
-              View details
-            </button>
+            <ViewDetailsButton onClick={() => setShowEditingModal(true)} />
           )}
         </div>
 
         {editingPreviewActions.length ? (
           // Show timestamped preview actions if we have them
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 mt-2">
             {editingPreviewActions.map((item, index) => (
               <div key={index} className="flex items-start gap-2">
                 <span className="mt-[1px] inline-flex items-center justify-center px-1.5 py-[1px] rounded-full border border-gray-200 bg-gray-50 text-[9px] font-mono text-gray-500">
@@ -657,7 +752,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
           </div>
         ) : editingSummary.length ? (
           // Fallback: plain text bullets
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 mt-2">
             {editingSummary.map((insight, index) => (
               <div key={index} className="flex items-start gap-2">
                 <span className="text-gray-300 text-xs leading-none">•</span>
@@ -668,7 +763,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 mt-2">
             Visual and pacing insights will appear here once analysis completes.
           </p>
         )}
@@ -676,9 +771,14 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
       {/* 4) ATTENTION METRICS + RETENTION  (ABOVE ENGAGEMENT) */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
-        <h3 className="text-sm font-semibold text-gray-900 mb-5">
-          Attention Metrics
-        </h3>
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Attention Metrics
+          </h3>
+          <p className="text-[11px] text-gray-400">
+            How likely people are to stop scrolling and how long they stay.
+          </p>
+        </div>
 
         {/* Swipe Probability */}
         <div className="mb-5">
@@ -722,9 +822,14 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
       {/* 5) ENGAGEMENT PROBABILITIES  (NOW BELOW ATTENTION) */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm w-full">
-        <h3 className="text-sm font-semibold text-gray-900 mb-5">
-          {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
-        </h3>
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">
+            {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
+          </h3>
+          <p className="text-[11px] text-gray-400">
+            Likelihood of likes, comments, shares, saves and follows.
+          </p>
+        </div>
 
         <div className="space-y-4">
           {engagementData.map((item) => {
