@@ -1,3 +1,4 @@
+// src/components/gravity/PersonaCard.jsx
 import React from "react";
 
 // 0–1 or 0–100 -> pretty %
@@ -74,21 +75,12 @@ export default function PersonaCard({ persona, metrics, position = "right" }) {
 
   return (
     <div
-      className="flex items-center"
+      className="flex"
       style={{
         flexDirection: isRight ? "row" : "row-reverse",
       }}
     >
-      {/* Connector line */}
-      <div
-        style={{
-          width: 14,
-          height: 1,
-          backgroundColor: "#D8D8D8",
-        }}
-      />
-
-      {/* Tag container */}
+      {/* Tag container (no connector line any more) */}
       <div
         style={{
           backgroundColor: "#FFFFFF",
@@ -98,6 +90,8 @@ export default function PersonaCard({ persona, metrics, position = "right" }) {
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
           width: 260,
           animation: "personaTagFade 0.2s ease-out",
+          marginLeft: isRight ? 8 : 0,
+          marginRight: isRight ? 0 : 8,
         }}
       >
         {/* Persona Name */}

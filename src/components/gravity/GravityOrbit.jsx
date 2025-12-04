@@ -1,5 +1,5 @@
 // src/components/gravity/GravityOrbit.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import PersonaTag from "./PersonaCard";
@@ -153,6 +153,10 @@ export default function GravityOrbit({
   const [hoverMetrics, setHoverMetrics] = useState(null);
   const [hoverScreenPos, setHoverScreenPos] = useState(null);
 
+  // ref to the DOM element of the currently hovered dot
+  const hoverDotRef = useRef(null);
+  const animationFrameRef = useRef(null);
+
   const personasWithPositions = useMemo(() => {
     const source =
       Array.isArray(savedPersonas) && savedPersonas.length > 0
@@ -161,7 +165,7 @@ export default function GravityOrbit({
     return computePositions(source);
   }, [savedPersonas]);
 
-    const metricsById = useMemo(() => {
+  const metricsById = useMemo(() => {
     const map = {};
     if (Array.isArray(savedMetrics)) {
       savedMetrics.forEach((m) => {
@@ -179,11 +183,50 @@ export default function GravityOrbit({
     return map;
   }, [savedMetrics]);
 
-  const handlePersonaHover = (persona, e) => {
-    if (!persona || !e) {
+  // --- position tracking loop -----------------------------------------
+
+  const updateHoverPosition = () => {
+    if (!hoverDotRef.current) {
+      animationFrameRef.current = null;
+      return;
+    }
+    const rect = hoverDotRef.current.getBoundingClientRect();
+    setHoverScreenPos({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    });
+    animationFrameRef.current = requestAnimationFrame(updateHoverPosition);
+  };
+
+  const startTrackingDot = (el) => {
+    hoverDotRef.current = el;
+    if (!animationFrameRef.current) {
+      updateHoverPosition();
+    }
+  };
+
+  const stopTrackingDot = () => {
+    hoverDotRef.current = null;
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    // cleanup on unmount
+    return () => {
+      stopTrackingDot();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePersonaHover = (persona, targetEl) => {
+    if (!persona || !targetEl) {
       setHoveredPersona(null);
       setHoverMetrics(null);
       setHoverScreenPos(null);
+      stopTrackingDot();
       return;
     }
 
@@ -196,12 +239,8 @@ export default function GravityOrbit({
 
     setHoveredPersona(persona);
     setHoverMetrics(metrics);
-    setHoverScreenPos({
-      x: e.clientX,
-      y: e.clientY,
-    });
+    startTrackingDot(targetEl);
   };
-
 
   const handlePersonaClick = (persona) => {
     if (!onPersonaSelect) return;
@@ -218,6 +257,7 @@ export default function GravityOrbit({
     setHoveredPersona(null);
     setHoverMetrics(null);
     setHoverScreenPos(null);
+    stopTrackingDot();
   };
 
   return (
@@ -306,10 +346,8 @@ export default function GravityOrbit({
                   alignItems: "center",
                   justifyContent: "center",
                 }}
-                onMouseEnter={(e) => handlePersonaHover(persona, e)}
-                onMouseMove={(e) =>
-                  hoveredPersona?.id === persona.id &&
-                  handlePersonaHover(persona, e)
+                onMouseEnter={(e) =>
+                  handlePersonaHover(persona, e.currentTarget)
                 }
                 onMouseLeave={() => handlePersonaHover(null, null)}
                 onClick={() => handlePersonaClick(persona)}

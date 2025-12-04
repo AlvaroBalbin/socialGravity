@@ -4,31 +4,57 @@ import React, { useState, useCallback, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
 import { useAuth } from "../../lib/AuthContext";
 
-const CACHE_KEY_PREFIX = "profileAnalytics:";
-
 export default function ProfileAnalyticsPanel() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false); // only for manual refresh
-  const [payload, setPayload] = useState(null);  // last good result
+  const [loading, setLoading] = useState(false); // manual refresh only
+  const [payload, setPayload] = useState(null);  // row from user_profile_analytics
   const [error, setError] = useState(null);      // string | null
 
-  const cacheKey = user ? `${CACHE_KEY_PREFIX}${user.id}` : null;
+  // --- Helper to load from user_profile_analytics -----------------------
+  const fetchAnalyticsRow = useCallback(
+    async () => {
+      if (!user) return;
 
-  // Load last cached payload on mount / user change
-  useEffect(() => {
-    if (!cacheKey) return;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        setPayload(parsed);
-        setError(parsed?.error ?? null);
+      try {
+        const { data, error: dbError } = await supabase
+          .from("user_profile_analytics")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (dbError) {
+          console.error("fetchAnalyticsRow error:", dbError);
+          // Don't nuke the UI, but surface a soft error
+          setError(dbError.message || "DB_ERROR");
+          return;
+        }
+
+        if (data) {
+          setPayload(data);
+          setError(null);
+        } else {
+          // No row yet – not an error, just "no analytics yet"
+          setPayload(null);
+        }
+      } catch (e) {
+        console.error("fetchAnalyticsRow exception:", e);
+        setError("DB_FETCH_EXCEPTION");
       }
-    } catch (e) {
-      console.warn("Failed to read cached analytics:", e);
-    }
-  }, [cacheKey]);
+    },
+    [user]
+  );
 
+  // Load DB row on mount / user change
+  useEffect(() => {
+    if (!user) {
+      setPayload(null);
+      setError(null);
+      return;
+    }
+    fetchAnalyticsRow();
+  }, [user, fetchAnalyticsRow]);
+
+  // --- Manual refresh: call edge function, then reload DB row -----------
   const loadInsights = useCallback(
     async () => {
       if (!user || loading) return;
@@ -45,37 +71,27 @@ export default function ProfileAnalyticsPanel() {
         console.error("get_global_insights error:", fnError, data);
         const errMsg = data?.error || fnError.message || "UNKNOWN_ERROR";
         setError(errMsg);
+        // Keep whatever payload we already had
+      } else if (data?.error === "NOT_ENOUGH_SIMULATIONS") {
+        // Edge function returned soft error – no DB write
+        setPayload(null);
+        setError("NOT_ENOUGH_SIMULATIONS");
       } else {
-        const stamped = {
-          ...data,
-          last_refreshed_at: new Date().toISOString(),
-        };
-
-        if (stamped?.error === "NOT_ENOUGH_SIMULATIONS") {
-          setError("NOT_ENOUGH_SIMULATIONS");
-          setPayload(stamped);
-        } else {
-          setPayload(stamped);
-          setError(null);
-        }
-
-        if (cacheKey) {
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(stamped));
-          } catch (e) {
-            console.warn("Failed to cache analytics:", e);
-          }
-        }
+        // Function succeeded and should have upserted into user_profile_analytics
+        await fetchAnalyticsRow();
       }
 
       setLoading(false);
     },
-    [user, loading, cacheKey]
+    [user, loading, fetchAnalyticsRow]
   );
 
   const metrics = payload?.metrics;
   const insights = payload?.insights;
-  const lastUpdated = payload?.last_refreshed_at;
+  const lastUpdated =
+    payload?.last_refreshed_at ||
+    payload?.updated_at ||
+    payload?.created_at;
 
   const formatPct = (x) =>
     x === null || x === undefined ? "–" : `${Math.round(x * 100)}%`;
@@ -105,7 +121,7 @@ export default function ProfileAnalyticsPanel() {
   };
 
   const sinceLabel = lastUpdated ? formatSince(lastUpdated) : null;
-  const showSkeleton = loading && !payload; // only show skeleton on very first fetch
+  const showSkeleton = loading && !payload; // only on first refresh with no data
 
   return (
     <aside
@@ -157,7 +173,6 @@ export default function ProfileAnalyticsPanel() {
               >
                 {loading ? "Refreshing…" : "Refresh"}
               </button>
-
             </div>
           </div>
 
@@ -171,10 +186,11 @@ export default function ProfileAnalyticsPanel() {
               space-y-3
             "
           >
-            {/* Initial idle message if nothing loaded yet */}
+            {/* Initial idle / no-data message */}
             {!payload && !error && !showSkeleton && (
               <div className="mb-1 text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
-                Click <span className="font-medium text-emerald-700">Refresh</span>{" "}
+                Click{" "}
+                <span className="font-medium text-emerald-700">Refresh</span>{" "}
                 to generate global insights from your simulations.
               </div>
             )}
