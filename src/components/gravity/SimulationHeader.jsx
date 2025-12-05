@@ -213,15 +213,15 @@ export default function SimulationHeader({
 
         {/* Right Button */}
         {isOwnedByUser ? (
-          // ✅ User already owns this simulation → go to library
+          // ✅ User already owns this simulation → just go to their library
           <button
             onClick={handleViewAll}
             className="px-5 py-2 text-sm font-medium rounded-xl border border-gray-900 bg-gray-900 text-white hover:bg-black transition-all duration-200"
           >
-            View All Simulations
+            Your Simulations
           </button>
         ) : (
-          // ❌ Not owned yet → Save Simulation flow
+          // ❌ Not owned yet → Save / claim flow
           <button
             onClick={handleSave}
             disabled={isSaved || isSaving}
@@ -241,7 +241,8 @@ export default function SimulationHeader({
                 Saved <Check className="w-3.5 h-3.5" />
               </span>
             ) : (
-              "Save Simulation"
+              // 🔁 Label depends on auth state
+              (isAuthenticated ? "Your Simulations" : "Save Simulation")
             )}
           </button>
         )}

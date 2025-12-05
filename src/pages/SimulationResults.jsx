@@ -42,10 +42,10 @@ export default function SimulationResults() {
     select: mapSimulationToUI,
   });
 
-  // Save button logic
+  // Save button logic / "Your Simulations" CTA
   const handleSave = () => {
     console.log(
-      "[SimulationResults] Save clicked. isAuthenticated:",
+      "[SimulationResults] Save/CTA clicked. isAuthenticated:",
       isAuthenticated,
       "simulationId:",
       simulationId
@@ -66,8 +66,8 @@ export default function SimulationResults() {
       return;
     }
 
-    // Already logged in → in future you might do extra save logic here
-    console.log("User already authenticated; simulation should be claimed.");
+    // Already logged in → treat this as "Your Simulations" button
+    window.location.href = createPageUrl("Profile");
   };
 
   const handlePersonaSelect = (persona) => {
@@ -135,12 +135,10 @@ export default function SimulationResults() {
   const personas = simulation.personas ?? simulation.personas_data ?? [];
 
   // Determine if this simulation is already owned by the logged-in user
-  // Use a safe "any" read so TS doesn't complain about user_id not being in UISimulation
-// Determine if this simulation is already owned by the logged-in user
-// Use a safe "any-style" read so TS doesn't complain about user_id / userId
-const ownerId = simulation
-  ? simulation["user_id"] ?? simulation["userId"] ?? null
-  : null;
+  // Use a safe "any-style" read so TS doesn't complain about user_id / userId
+  const ownerId = simulation
+    ? simulation["user_id"] ?? simulation["userId"] ?? null
+    : null;
 
   const isOwnedByUser =
     isAuthenticated && !!user?.id && ownerId === user.id;
@@ -151,7 +149,7 @@ const ownerId = simulation
         simulationData={simulation}
         onTitleChange={handleTitleChange}
         onSave={handleSave}
-        isOwnedByUser={isOwnedByUser} // ✅ passed down
+        isOwnedByUser={isOwnedByUser} // ✅ passed down – use this to show "Your Simulations"
       />
 
       {/* Main Content */}

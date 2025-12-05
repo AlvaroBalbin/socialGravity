@@ -288,13 +288,13 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
             <>
               {step === 1 && (
                 <div>
+                  {/* UPDATED TITLE + SUBTEXT */}
                   <h2 className="text-lg font-medium text-gray-900 mb-2">
-                    Name your simulation &amp; audience
+                    Who’s on the other side of the screen?
                   </h2>
 
                   <p className="text-sm text-gray-500 font-light mb-6">
-                    Give this simulation a clear title and describe who you want
-                    to stress-test the content against.
+                    Describe the audience you want to test your content with.
                   </p>
 
                   {/* Simulation Title */}
@@ -307,7 +307,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                       type="text"
                       value={simulationTitle}
                       onChange={(e) => setSimulationTitle(e.target.value)}
-                      placeholder="Who’s on the other side of the screen? "
+                      placeholder="e.g. Testing content for young, chaotic energy audiences"
                       className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-300 transition-colors"
                     />
                   </div>
@@ -320,7 +320,7 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
                   <textarea
                     value={audienceDescription}
                     onChange={(e) => setAudienceDescription(e.target.value)}
-                    placeholder="Describe the audience you want to test this content with."
+                    placeholder="My audience is mostly late teens to mid 20s in the UK and US. They’re a mix of students and young professionals who vibe with my personality and chaotic energy. They’re into gym content, self improvement, uni life, dating, and anything funny or relatable in a low effort way."
                     className="w-full h-32 p-4 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-gray-300 transition-colors"
                   />
 
