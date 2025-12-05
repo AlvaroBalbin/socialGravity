@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 export default function TopBar() {
   return (
     <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-gray-100">
+
       {/* Upload button */}
       <button className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex-shrink-0">
         <Upload className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
@@ -15,9 +16,9 @@ export default function TopBar() {
       <div className="flex-1 max-w-xl">
         <Input
           type="text"
-          placeholder="Describe your audience (e.g., 'Gen Z aesthetic fashion girls in NYC')"
-          className="h-11 px-4 bg-gray-50 border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-gray-300"
+          placeholder="Describe your audience (e.g. 'Gen Z aesthetic fashion girls in NYC')"
           defaultValue="Gen Z aesthetic fashion girls in NYC"
+          className="h-11 px-4 bg-gray-50 border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-gray-300"
         />
       </div>
 

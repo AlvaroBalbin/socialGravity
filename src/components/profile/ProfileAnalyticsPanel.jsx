@@ -246,7 +246,7 @@ export default function ProfileAnalyticsPanel() {
                   {metrics && (
                     <section>
                       <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 mb-1">
-                        Average probabilities
+                        Average engagement
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-[11px]">
                         {[
