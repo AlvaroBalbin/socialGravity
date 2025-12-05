@@ -4,6 +4,8 @@ import React, { useState, useCallback, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
 import { useAuth } from "../../lib/AuthContext";
 
+const MAX_BULLETS_PER_SECTION = 3;
+
 export default function ProfileAnalyticsPanel() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false); // manual refresh only
@@ -257,15 +259,30 @@ export default function ProfileAnalyticsPanel() {
                         ].map(([label, value]) => (
                           <div
                             key={label}
-                            className="border border-gray-100 rounded-lg px-2 py-1.5 bg-white"
+                            className="
+                              group
+                              border border-gray-100
+                              rounded-lg
+                              px-2 py-1.5
+                              bg-white
+                              transition-all
+                              duration-150
+                              ease-out
+                              hover:-translate-y-0.5
+                              hover:shadow-[0_10px_25px_rgba(0,0,0,0.08)]
+                              hover:border-gray-200
+                              hover:bg-gray-50
+                              cursor-default
+                            "
                           >
-                            <div className="text-[9px] uppercase tracking-[0.12em] text-gray-400 mb-0.5">
+                            <div className="text-[9px] uppercase tracking-[0.12em] text-gray-400 mb-0.5 group-hover:text-gray-700">
                               {label}
                             </div>
-                            <div className="text-[11px] font-semibold text-gray-900">
+                            <div className="text-[11px] font-semibold text-gray-900 group-hover:text-gray-950">
                               {formatPct(value)}
                             </div>
                           </div>
+
                         ))}
                       </div>
                     </section>
@@ -298,13 +315,20 @@ export default function ProfileAnalyticsPanel() {
 function BulletSection({ title, items }) {
   if (!items || !items.length) return null;
 
+  // ensure we never show more than MAX_BULLETS_PER_SECTION
+  const limitedItems = Array.isArray(items)
+    ? items.slice(0, MAX_BULLETS_PER_SECTION)
+    : [];
+
+  if (!limitedItems.length) return null;
+
   return (
     <section>
       <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 mb-1">
         {title}
       </div>
       <ul className="text-[11px] text-gray-800 space-y-1 pl-4 list-disc">
-        {items.map((item, idx) => (
+        {limitedItems.map((item, idx) => (
           <li key={idx} className="leading-snug">
             {item}
           </li>

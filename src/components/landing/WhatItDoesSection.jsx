@@ -100,7 +100,7 @@ export default function WhatItDoesSection() {
             transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s',
           }}
         >
-          No metrics noise. No ambiguity. Just clarity.
+          We use an adaptive audience graph built from cross-platform behavioural signals, taste embeddings, real-world viewing distributions, and models trained on thousands of videos
         </p>
       </div>
     </section>
