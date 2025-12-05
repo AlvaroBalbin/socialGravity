@@ -57,23 +57,10 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [userStats, setUserStats] = useState({
-    count: 0,
-    recent: [],
-  });
-
-  const [simStats, setSimStats] = useState({
-    count: 0,
-    recent: [],
-  });
-
+  const [userStats, setUserStats] = useState({ count: 0, recent: [] });
+  const [simStats, setSimStats] = useState({ count: 0, recent: [] });
   const [videoCount, setVideoCount] = useState(0);
-
-  const [feedbackStats, setFeedbackStats] = useState({
-    count: 0,
-    recent: [],
-  });
-
+  const [feedbackStats, setFeedbackStats] = useState({ count: 0, recent: [] });
   const [topCreators, setTopCreators] = useState([]);
 
   // selection + details
@@ -88,23 +75,18 @@ export default function AdminDashboard() {
 
       try {
         const [
-          // Users – count + latest
           {
             data: users,
             count: userCount,
             error: usersErr,
           },
-          // Simulations – count + latest
           {
             data: sims,
             count: simCount,
             error: simsErr,
           },
-          // Videos – count only
           { count: videoCountRaw, error: videosErr },
-          // Feedback – ALL rows, we'll slice + count in JS
           { data: feedbackRows, error: fbErr },
-          // Top creators
           { data: analytics, error: analyticsErr },
         ] = await Promise.all([
           supabase
@@ -121,13 +103,14 @@ export default function AdminDashboard() {
             .order("created_at", { ascending: false })
             .limit(10),
 
-          supabase
-            .from("videos")
-            .select("id", { count: "exact", head: true }),
+          supabase.from("videos").select("id", { count: "exact", head: true }),
 
+          // feedback table: id, message, phone, user_id, created_at, contact_email, account_email
           supabase
             .from("feedback")
-            .select("id, created_at, message, account_email, contact_email"),
+            .select(
+              "id, created_at, message, phone, user_id, contact_email, account_email"
+            ),
 
           supabase
             .from("user_profile_analytics")
@@ -135,6 +118,54 @@ export default function AdminDashboard() {
             .order("simulations_count", { ascending: false })
             .limit(5),
         ]);
+
+        // --- look up profile names for simulation users -------------------
+        let simProfileMap = {};
+        if (sims && sims.length) {
+          const simUserIds = Array.from(
+            new Set(sims.map((s) => s.user_id).filter(Boolean))
+          );
+          if (simUserIds.length) {
+            const { data: simProfiles, error: simProfilesErr } =
+              await supabase
+                .from("profiles")
+                .select("id, full_name")
+                .in("id", simUserIds);
+
+            if (simProfilesErr) {
+              console.error("Sim profiles error:", simProfilesErr);
+            } else {
+              simProfileMap = Object.fromEntries(
+                simProfiles.map((p) => [p.id, p])
+              );
+            }
+          }
+        }
+
+        // --- look up profile names for creator analytics ------------------
+        let creatorProfileMap = {};
+        if (analytics && analytics.length) {
+          const creatorIds = Array.from(
+            new Set(analytics.map((a) => a.user_id).filter(Boolean))
+          );
+          if (creatorIds.length) {
+            const {
+              data: creatorProfiles,
+              error: creatorProfilesErr,
+            } = await supabase
+              .from("profiles")
+              .select("id, full_name")
+              .in("id", creatorIds);
+
+            if (creatorProfilesErr) {
+              console.error("Creator profiles error:", creatorProfilesErr);
+            } else {
+              creatorProfileMap = Object.fromEntries(
+                creatorProfiles.map((p) => [p.id, p])
+              );
+            }
+          }
+        }
 
         if (usersErr || simsErr || videosErr || fbErr || analyticsErr) {
           console.error(
@@ -155,17 +186,19 @@ export default function AdminDashboard() {
 
         setSimStats({
           count: simCount ?? 0,
-          recent: sims ?? [],
+          recent: (sims ?? []).map((s) => ({
+            ...s,
+            profile: simProfileMap[s.user_id] || null,
+          })),
         });
 
         setVideoCount(videoCountRaw ?? 0);
 
         const fbList = feedbackRows ?? [];
-
         fbList.sort((a, b) => {
-        const tb = new Date(b.created_at ?? 0).getTime();
-        const ta = new Date(a.created_at ?? 0).getTime();
-        return tb - ta; // newest first
+          const tb = new Date(b.created_at ?? 0).getTime();
+          const ta = new Date(a.created_at ?? 0).getTime();
+          return tb - ta; // newest first
         });
 
         setFeedbackStats({
@@ -173,7 +206,12 @@ export default function AdminDashboard() {
           recent: fbList.slice(0, 8),
         });
 
-        setTopCreators(analytics ?? []);
+        setTopCreators(
+          (analytics ?? []).map((row) => ({
+            ...row,
+            profile: creatorProfileMap[row.user_id] || null,
+          }))
+        );
       } catch (err) {
         console.error("Admin dashboard error", err);
         setError("Unexpected error loading admin data.");
@@ -217,7 +255,7 @@ export default function AdminDashboard() {
         console.error("Failed to load simulation details", error);
         setSelectedSim(null);
       } else {
-        setSelectedSim(data);
+        setSelectedSim({ ...data, profile: sim.profile || null });
       }
     } catch (err) {
       console.error("Simulation details error", err);
@@ -370,8 +408,8 @@ export default function AdminDashboard() {
                       isSelected ? "bg-slate-50" : "bg-white hover:bg-slate-50"
                     }`}
                   >
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[13px] font-medium text-slate-900">
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[13px] font-medium text-slate-900 truncate">
                         {sim.title || "Untitled simulation"}
                       </span>
                       <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
@@ -380,11 +418,22 @@ export default function AdminDashboard() {
                         </span>
                         <span>·</span>
                         <span className="lowercase">{sim.status}</span>
+                        {sim.profile?.full_name && (
+                          <>
+                            <span>·</span>
+                            <span className="truncate max-w-[140px]">
+                              {sim.profile.full_name}
+                            </span>
+                          </>
+                        )}
                         {sim.user_id && (
                           <>
                             <span>·</span>
-                            <span className="font-mono text-[10px]">
-                              {sim.user_id.slice(0, 8)}…
+                            <span
+                              className="font-mono text-[10px] max-w-[80px] truncate"
+                              title={sim.user_id}
+                            >
+                              {sim.user_id}
                             </span>
                           </>
                         )}
@@ -456,16 +505,37 @@ export default function AdminDashboard() {
                         </>
                       )}
                     </p>
+
                     {selectedSim.user_id && (
-                      <p className="text-[10px] text-slate-400 font-mono truncate">
-                        User: {selectedSim.user_id}
-                      </p>
+                      <div className="text-[10px] text-slate-400">
+                        <p>
+                          User:{" "}
+                          {selectedSim.profile?.full_name
+                            ? selectedSim.profile.full_name
+                            : "Unknown"}
+                        </p>
+                        <p className="font-mono break-all">
+                          {selectedSim.user_id}
+                        </p>
+                      </div>
                     )}
                   </div>
 
+                  {/* Prompt */}
+                  {selectedSim.audience_prompt && (
+                    <div className="mt-2">
+                      <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400 font-semibold">
+                        Prompt
+                      </p>
+                      <p className="text-[11px] text-slate-700 whitespace-pre-line leading-relaxed">
+                        {selectedSim.audience_prompt}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Video link */}
                   {selectedSim.video_url && (
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mt-2">
                       <span className="text-[10px] text-slate-400">
                         Source video
                       </span>
@@ -482,7 +552,7 @@ export default function AdminDashboard() {
 
                   {/* Metrics summary */}
                   {simMetrics && (
-                    <div className="rounded-2xl bg-slate-50 border border-slate-200 px-3 py-2 space-y-2">
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 px-3 py-2 space-y-2 mt-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] uppercase tracking-[0.12em] text-slate-400 font-semibold">
                           Metrics
@@ -539,7 +609,7 @@ export default function AdminDashboard() {
 
                   {/* Visual analysis */}
                   {simVisual && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 mt-3">
                       <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400 font-semibold">
                         Visual analysis
                       </p>
@@ -572,7 +642,7 @@ export default function AdminDashboard() {
 
                   {/* Storytelling / editing insights */}
                   {(simStory || simEditing) && (
-                    <div className="grid grid-cols-1 gap-3">
+                    <div className="grid grid-cols-1 gap-3 mt-3">
                       {simStory && (
                         <div className="space-y-1">
                           <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400 font-semibold">
@@ -610,7 +680,7 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Bottom row: users + feedback */}
+        {/* Bottom row: users + creator analytics + feedback */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* New users */}
           <div className="rounded-3xl bg-white shadow-sm border border-slate-200">
@@ -650,8 +720,83 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Latest feedback */}
-          <div className="lg:col-span-2 rounded-3xl bg-white shadow-sm border border-slate-200">
+          {/* Creator analytics */}
+          <div className="rounded-3xl bg-white shadow-sm border border-slate-200">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-xs font-semibold text-slate-800 tracking-[0.12em] uppercase">
+                  Creator Analytics
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  Per-account performance snapshot
+                </p>
+              </div>
+            </div>
+            <div className="max-h-[220px] overflow-y-auto">
+              {topCreators.map((row) => {
+                const m = parseMaybeJson(row.metrics);
+                return (
+                  <div
+                    key={row.user_id}
+                    className="px-5 py-3 border-b border-slate-100 last:border-b-0"
+                  >
+                    <p className="text-[12px] font-medium text-slate-900 truncate">
+                      {row.profile?.full_name || "(no name)"}
+                    </p>
+                    <p
+                      className="text-[10px] text-slate-400 font-mono truncate max-w-[160px]"
+                      title={row.user_id}
+                    >
+                      {row.user_id}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Simulations:{" "}
+                      <span className="font-semibold">
+                        {row.simulations_count}
+                      </span>
+                    </p>
+                    {m && (
+                      <div className="mt-1 grid grid-cols-3 gap-2 text-[10px] text-slate-500">
+                        <div>
+                          <p className="uppercase tracking-[0.1em] text-slate-400">
+                            Aud. fit
+                          </p>
+                          <p className="font-semibold">
+                            {formatPercent(m.avg_audience_fit)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="uppercase tracking-[0.1em] text-slate-400">
+                            Swipe
+                          </p>
+                          <p className="font-semibold">
+                            {formatPercent(m.avg_swipe_probability)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="uppercase tracking-[0.1em] text-slate-400">
+                            Like
+                          </p>
+                          <p className="font-semibold">
+                            {formatPercent(m.avg_like_probability)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {!topCreators.length && !loading && (
+                <div className="px-5 py-4 text-center text-[11px] text-slate-400">
+                  No analytics yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+                      {/* Latest feedback */}
+          <div className="rounded-3xl bg-white shadow-sm border border-slate-200">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h2 className="text-xs font-semibold text-slate-800 tracking-[0.12em] uppercase">
@@ -662,28 +807,62 @@ export default function AdminDashboard() {
                 </p>
               </div>
             </div>
+
             <div className="max-h-[220px] overflow-y-auto">
-              {feedbackStats.recent.map((fb) => (
-                <div
-                  key={fb.id}
-                  className="px-5 py-3 border-b border-slate-100 last:border-b-0 flex flex-col gap-1"
-                >
-                  <p className="text-[11px] text-slate-800 leading-snug">
-                    {fb.message}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
-                    <span>
-                      {new Date(fb.created_at).toLocaleString()}
-                    </span>
-                    <span>·</span>
-                    <span>
-                      {fb.account_email ||
-                        fb.contact_email ||
-                        "anonymous feedback"}
-                    </span>
-                  </div>
-                </div>
-              ))}
+              {feedbackStats.recent.map((fb) => {
+                const identity =
+                  fb.account_email ||
+                  fb.contact_email ||
+                  "anonymous";
+
+                const createdAt = new Date(fb.created_at).toLocaleString();
+
+                return (
+                  <details
+                    key={fb.id}
+                    className="border-b border-slate-100 last:border-b-0"
+                  >
+                    {/* Header row: email / anonymous is the “title” */}
+                    <summary className="flex items-center justify-between gap-2 px-5 py-3 cursor-pointer list-none">
+                      <span className="text-[11px] font-medium text-slate-900 truncate max-w-[180px]">
+                        {identity}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {createdAt}
+                      </span>
+                    </summary>
+
+                    {/* Expanded content: full feedback + meta */}
+                    <div className="px-5 pb-3 pt-0 flex flex-col gap-1 text-[11px] text-slate-600">
+                      {fb.message && (
+                        <p className="whitespace-pre-line leading-snug">
+                          {fb.message}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 mt-1">
+                        {fb.phone && (
+                          <>
+                            <span>Phone:</span>
+                            <span>{fb.phone}</span>
+                          </>
+                        )}
+                        {fb.user_id && (
+                          <>
+                            <span>·</span>
+                            <span
+                              className="font-mono max-w-[80px] truncate"
+                              title={fb.user_id}
+                            >
+                              {fb.user_id}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </details>
+                );
+              })}
 
               {!feedbackStats.recent.length && !loading && (
                 <div className="px-5 py-6 text-center text-[11px] text-slate-400">
@@ -692,6 +871,7 @@ export default function AdminDashboard() {
               )}
             </div>
           </div>
+
         </section>
 
         {loading && (

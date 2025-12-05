@@ -1,5 +1,5 @@
 // src/components/feedback/FeedbackWidget.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/lib/AuthContext";
@@ -10,7 +10,7 @@ export default function FeedbackWidget({
 }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [email, setEmail] = useState(""); // contact email they type
+  const [contactEmail, setContactEmail] = useState(""); // email they type
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -18,12 +18,18 @@ export default function FeedbackWidget({
 
   const { user } = useAuth(); // current logged-in user (or null)
 
+  // When modal opens, prefill contact email with account email if empty
+  useEffect(() => {
+    if (open && user?.email && !contactEmail) {
+      setContactEmail(user.email);
+    }
+  }, [open, user, contactEmail]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSubmitted(false);
 
-    // Soft validation instead of browser "fill this field" popup
     if (!message.trim()) {
       setError("Please add a bit of feedback before sending.");
       return;
@@ -34,17 +40,18 @@ export default function FeedbackWidget({
     try {
       const { error: insertError } = await supabase.from("feedback").insert({
         message,
-        contact_email: email || null,
+        // We intentionally do NOT use the legacy `email` column anymore.
+        contact_email: contactEmail || null,
+        account_email: user?.email || null,
         phone: phone || null,
         user_id: user?.id || null,
-        account_email: user?.email || null,
       });
 
       if (insertError) throw insertError;
 
       setSubmitted(true);
       setMessage("");
-      setEmail("");
+      setContactEmail("");
       setPhone("");
     } catch (err) {
       console.error("Feedback insert failed:", err);
@@ -58,6 +65,10 @@ export default function FeedbackWidget({
     setOpen(false);
     setSubmitted(false);
     setError("");
+    // optional: don’t clear text when closing so they can reopen and continue
+    // setMessage("");
+    // setContactEmail("");
+    // setPhone("");
   };
 
   const baseButtonClasses =
@@ -82,7 +93,7 @@ export default function FeedbackWidget({
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 mb-3">
-              Anonymous
+              {user ? "Signed in" : "Anonymous"}
             </div>
             <h2 className="text-lg font-semibold text-gray-900">
               We’d love your feedback!
@@ -111,7 +122,7 @@ export default function FeedbackWidget({
               value={message}
               onChange={(e) => {
                 setMessage(e.target.value);
-                if (error) setError(""); // clear error as they type
+                if (error) setError("");
               }}
               className={`w-full rounded-xl border px-3 py-2 text-sm shadow-sm resize-none focus:outline-none focus:ring-1 ${
                 error
@@ -135,8 +146,8 @@ export default function FeedbackWidget({
                 </label>
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
                   className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
                   placeholder="you@example.com"
                 />
@@ -156,9 +167,7 @@ export default function FeedbackWidget({
             </div>
           </div>
 
-          {error && (
-            <p className="text-xs text-red-500 mt-1">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
 
           {submitted && !error && (
             <p className="text-xs text-emerald-600 mt-1">
@@ -189,7 +198,6 @@ export default function FeedbackWidget({
 
   return (
     <>
-      {/* Trigger button */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -198,7 +206,6 @@ export default function FeedbackWidget({
         {buttonLabel}
       </button>
 
-      {/* Modal via portal so it sits above everything */}
       {open && typeof document !== "undefined"
         ? createPortal(modal, document.body)
         : null}
