@@ -18,6 +18,21 @@ function getTwoWordLabel(label) {
   return parts.slice(0, 2).join(' ');
 }
 
+// 🔑 unified key helpers so persona <-> metrics matching actually works
+const getPersonaKey = (p) =>
+  p?.id ?? p?.personaId ?? p?.persona_id ?? p?.personaID ?? null;
+
+const getMetricsKey = (m) =>
+  m?.personaId ??
+  m?.persona_id ??
+  (m?.persona &&
+    (m.persona.id ||
+      m.persona.personaId ||
+      m.persona.persona_id ||
+      m.persona.personaID)) ??
+  m?.id ??
+  null;
+
 // seconds -> "mm:ss"
 function formatTimestamp(seconds) {
   if (seconds == null || Number.isNaN(seconds)) return '0:00';
@@ -383,11 +398,13 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       ? simulation.metrics.attention_metrics
       : null;
 
-  // Find persona metrics (probabilities, watch time, qualitative feedback…)
+  // 🔑 Find persona metrics using unified key matching
+  const selectedPersonaKey = getPersonaKey(selectedPersona);
+
   const personaMetrics =
-    selectedPersona &&
+    selectedPersonaKey &&
     Array.isArray(metrics) &&
-    metrics.find((m) => m.personaId === selectedPersona.id);
+    metrics.find((m) => getMetricsKey(m) === selectedPersonaKey);
 
   const isPersonaView = !!(selectedPersona && personaMetrics);
 

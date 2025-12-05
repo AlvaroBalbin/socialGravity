@@ -37,6 +37,10 @@ const RING_SPEEDS = [80, 110, 140, 170];
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ~137.5°
 
+// unified persona key helper
+const getPersonaKey = (p) =>
+  p?.id ?? p?.personaId ?? p?.persona_id ?? p?.personaID ?? null;
+
 // ---------------------------------------------------------------------
 // Layout helpers – rank → discrete rings (no clashing radii)
 // ---------------------------------------------------------------------
@@ -65,7 +69,8 @@ function computePositions(personas) {
     ringIndex = Math.min(RING_COUNT - 1, Math.max(0, ringIndex));
 
     const radius = MIN_RADIUS_PX + ringIndex * RING_SPACING;
-    const duration = RING_SPEEDS[ringIndex] ?? RING_SPEEDS[RING_SPEEDS.length - 1];
+    const duration =
+      RING_SPEEDS[ringIndex] ?? RING_SPEEDS[RING_SPEEDS.length - 1];
 
     // Angles based on original index so they never start at same spot
     const baseAngle = persona._index * GOLDEN_ANGLE;
@@ -230,11 +235,7 @@ export default function GravityOrbit({
       return;
     }
 
-    const key =
-      persona.id ??
-      persona.personaId ??
-      persona.persona_id;
-
+    const key = getPersonaKey(persona);
     const metrics = key ? metricsById[key] || null : null;
 
     setHoveredPersona(persona);
@@ -242,14 +243,16 @@ export default function GravityOrbit({
     startTrackingDot(targetEl);
   };
 
+  // Clicking a persona should ALWAYS select that persona (no toggle)
   const handlePersonaClick = (persona) => {
     if (!onPersonaSelect) return;
-    if (selectedPersona?.id === persona.id) onPersonaSelect(null);
-    else onPersonaSelect(persona);
+    onPersonaSelect(persona);
   };
 
-  const handleBackgroundClick = () => {
+  // 🔑 ONLY clear if the click was on the bare wrapper, not any child
+  const handleBackgroundClick = (e) => {
     if (!selectedPersona) return;
+    if (e.target !== e.currentTarget) return; // ignore bubbled clicks
     onPersonaSelect(null);
   };
 
@@ -259,6 +262,8 @@ export default function GravityOrbit({
     setHoverScreenPos(null);
     stopTrackingDot();
   };
+
+  const selectedKey = getPersonaKey(selectedPersona);
 
   return (
     <div
@@ -307,17 +312,27 @@ export default function GravityOrbit({
 
           // bigger hit-box for small dots
           const hitSize = Math.max(size, 32);
+          const key = getPersonaKey(persona) ?? i;
+          const isHovered =
+            hoveredPersona &&
+            getPersonaKey(hoveredPersona) === getPersonaKey(persona);
+          const isSelected =
+            selectedKey && selectedKey === getPersonaKey(persona);
 
           return (
             <motion.div
-              key={persona.id ?? i}
+              key={key}
               className="absolute pointer-events-none"
               style={{
                 width: orbitRadius * 2,
                 height: orbitRadius * 2,
               }}
               initial={{ opacity: 0, scale: 0.9, rotate: persona.startAngle }}
-              animate={{ opacity: 1, scale: 1, rotate: persona.startAngle + 360 }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                rotate: persona.startAngle + 360,
+              }}
               transition={{
                 rotate: {
                   duration: orbitDuration,
@@ -350,7 +365,11 @@ export default function GravityOrbit({
                   handlePersonaHover(persona, e.currentTarget)
                 }
                 onMouseLeave={() => handlePersonaHover(null, null)}
-                onClick={() => handlePersonaClick(persona)}
+                onClick={(e) => {
+                  // prevent this click from becoming a "background" click
+                  e.stopPropagation();
+                  handlePersonaClick(persona);
+                }}
               >
                 <div
                   className="rounded-full transition-transform duration-200 dot-core"
@@ -362,9 +381,7 @@ export default function GravityOrbit({
                       rgba(60, 60, 60, 1) 100%)`,
                     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
                     transform:
-                      hoveredPersona?.id === persona.id
-                        ? "scale(1.2)"
-                        : "scale(1)",
+                      isHovered || isSelected ? "scale(1.2)" : "scale(1)",
                   }}
                 />
               </div>
