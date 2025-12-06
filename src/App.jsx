@@ -15,8 +15,9 @@ import {
 } from "react-router-dom";
 import PageNotFound from "./lib/PageNotFound";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
-import Login from "@/pages/Login"; // magic-link login page
-import AdminPage from "@/pages/AdminPage"; // 🆕 our admin page
+import Login from "@/pages/Login";
+import AdminPage from "@/pages/AdminPage";
+import ResetPassword from "@/pages/ResetPassword"; // 🆕 reset password page
 
 const { Pages, Layout, mainPage } = pagesConfig;
 
@@ -33,16 +34,16 @@ const LayoutWrapper = ({ children, currentPageName }) =>
 const AuthenticatedApp = () => {
   const { isLoading, user } = useAuth();
 
-  // Debug: see what's happening in the console
   console.log("Auth loading?", isLoading, "user:", user?.id);
 
-  // NOTE: we don't block on isLoading here; pages handle auth themselves
+  // We don't globally gate routes here; pages handle their own auth.
   return (
     <Routes>
-      {/* Login page WITHOUT main layout */}
+      {/* Auth pages WITHOUT main layout */}
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* 🆕 Admin dashboard (has its own layout + gate) */}
+      {/* Admin dashboard (can gate inside AdminPage itself) */}
       <Route path="/admin" element={<AdminPage />} />
 
       {/* Main page with layout */}
