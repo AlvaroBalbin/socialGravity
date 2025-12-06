@@ -42,6 +42,20 @@ function formatTimestamp(seconds) {
   return `${m}:${s}`;
 }
 
+// Small helper to safely parse JSON-ish fields (insights, etc.)
+// (We no longer use this for metrics – those come from metricsSummary.)
+function parseMaybeJson(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return null;
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    console.warn('Failed to parse JSON field in AnalyticsPanel:', e, value);
+    return null;
+  }
+}
+
 // RetentionCurve expects values 0–1 (from generalFeedback / personaMetrics / global metrics)
 function RetentionCurve({ retentionCurve = [], videoDuration = 12 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
@@ -333,16 +347,19 @@ function ViewDetailsButton({ onClick }) {
   );
 }
 
-// ---- Engagement UI helpers -------------------------------------------
+// ---- Engagement + interval helpers --------------------------------------
 
 // These match your backend ENGAGEMENT_RANGES (fractions 0–1)
 const ENGAGEMENT_UI_RANGES = {
   Like: { min: 0.01, max: 0.15 }, // 1–15%
-  Comment: { min: 0.001, max: 0.02 }, // 0.1–2%
+  Comment: { min: 0.001, max: 0.02 }, // not used for intervals, just here for safety
   Share: { min: 0.002, max: 0.04 }, // 0.2–4%
   Save: { min: 0.003, max: 0.06 }, // 0.3–6%
-  Follow: { min: 0.0005, max: 0.015 }, // 0.05–1.5%
+  Follow: { min: 0.0005, max: 0.015 }, // not used for intervals, persona-only
 };
+
+// Swipe range (to mirror backend SWIPE_MIN / SWIPE_MAX)
+const SWIPE_RANGE = { min: 0.2, max: 0.9 };
 
 // Show nice percentages, including sub-1% values
 function formatPercentFromProb(prob) {
@@ -368,10 +385,126 @@ function getEngagementBarWidth(label, prob) {
   let ratio = (clamped - min) / (max - min); // 0–1 within that metric's band
 
   // ensure non-zero values don't look like a hairline
-  const MIN_VISUAL_RATIO = 0.08; // 8%
+  const MIN_VISUAL_RATIO = 0.15; // 15% of the rail for any non-zero value
   if (ratio > 0 && ratio < MIN_VISUAL_RATIO) ratio = MIN_VISUAL_RATIO;
 
   return ratio * 100;
+}
+
+
+// Position (0–100) within that metric's allowed range
+function getEngagementPosition(label, prob) {
+  if (prob == null || Number.isNaN(prob)) return null;
+
+  const cfg = ENGAGEMENT_UI_RANGES[label];
+  if (!cfg) {
+    // fallback: treat as direct percentage
+    return Math.max(0, Math.min(prob * 100, 100));
+  }
+
+  const { min, max } = cfg;
+  const clamped = Math.min(Math.max(prob, min), max);
+  const ratio = (clamped - min) / (max - min); // 0–1
+  return Math.max(0, Math.min(ratio * 100, 100));
+}
+
+// ---- Certainty-based intervals (your rules) -----------------------------
+//
+// 1) Baseline width from input_quality_level:
+//    - high-quality: prediction ± 5–10%  -> we use ±7.5%
+//    - medium:      ±10–18%             -> ±14%
+//    - low:         ±18–28%             -> ±23%
+//    - very_vague:  ±28–40%             -> ±34%
+//
+// 2) Extreme predicted values (within allowed range):
+//    - bottom 20%  -> widen width by +20%
+//    - top 20%     -> widen width by +20%
+//
+// Applied to: swipe, like, share, save.
+
+function getBaseHalfWidthForQuality(level) {
+  const q = (level || '').toLowerCase();
+  if (q === 'high' || q === 'high_quality') return 0.075; // ±7.5
+  if (q === 'medium') return 0.14; // ±14
+  if (q === 'low') return 0.23; // ±23
+  if (q === 'very_vague' || q === 'very_vague_input') return 0.34; // ±34
+  return 0.18; // sensible default
+}
+
+function computeIntervalForMetric(prob, qualityLevel, range) {
+  if (prob == null || Number.isNaN(prob)) return null;
+
+  const min = range?.min ?? 0;
+  const max = range?.max ?? 1;
+  if (max <= min) return null;
+
+  // Clamp into allowed band
+  const clamped = Math.min(Math.max(prob, min), max);
+
+  // Position in band (0–1)
+  const pos = (clamped - min) / (max - min || 1);
+
+  // Baseline half-width from input quality
+  let halfWidth = getBaseHalfWidthForQuality(qualityLevel);
+
+  // Extremes: widen by +20% at bottom/top 20% of allowed band
+  if (pos <= 0.2 || pos >= 0.8) {
+    halfWidth *= 1.2;
+  }
+
+  let lower = clamped - halfWidth;
+  let upper = clamped + halfWidth;
+
+  // Clamp to allowed range
+  lower = Math.max(min, lower);
+  upper = Math.min(max, upper);
+
+  return { lower, upper };
+}
+
+// Premium copy for interval explanation (global view only)
+function getIntervalCopy(label, interval) {
+  if (!interval) return null;
+  const low = formatPercentFromProb(interval.lower);
+  const high = formatPercentFromProb(interval.upper);
+
+  if (label === 'Like') {
+    return (
+      <>
+        Most outcomes fall between <span className="font-medium text-gray-700">{low}</span> and{' '}
+        <span className="font-medium text-gray-700">{high}</span>. Grey ticks show this range; the
+        black tick marks the expected value.
+      </>
+    );
+  }
+
+  if (label === 'Share') {
+    return (
+      <>
+        Most outcomes fall between <span className="font-medium text-gray-700">{low}</span> and{' '}
+        <span className="font-medium text-gray-700">{high}</span>, with the black tick showing the
+        model’s estimate.
+      </>
+    );
+  }
+
+  if (label === 'Save') {
+    return (
+      <>
+        Expect results between <span className="font-medium text-gray-700">{low}</span> and{' '}
+        <span className="font-medium text-gray-700">{high}</span>. Grey ticks mark the uncertainty
+        range; black marks the predicted value.
+      </>
+    );
+  }
+
+  // default fallback
+  return (
+    <>
+      Most outcomes fall between <span className="font-medium text-gray-700">{low}</span> and{' '}
+      <span className="font-medium text-gray-700">{high}</span>.
+    </>
+  );
 }
 
 /**
@@ -387,31 +520,72 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
   if (!simulation) return null;
 
-  const general = simulation.generalFeedback || {};
-  const metrics = simulation.metrics || [];
+  // ---- Parse / normalise core data -------------------------------------
 
-  // If metrics is an object (new backend payload), pull global attention metrics from it
-  const globalAttention =
-    simulation.metrics &&
-    !Array.isArray(simulation.metrics) &&
-    simulation.metrics.attention_metrics
-      ? simulation.metrics.attention_metrics
-      : null;
+  const general = simulation.generalFeedback || {};
+
+  // Persona-level metrics always come from simulation.metrics (array).
+  const metricsArray = Array.isArray(simulation.metrics)
+    ? simulation.metrics
+    : [];
+
+  // Global/aggregate metrics JSON now comes from metricsSummary (already parsed).
+  const metricsObj = simulation.metricsSummary || null;
+
+  const globalAttention = metricsObj?.attention_metrics || null;
+  const globalEngagement = metricsObj?.engagement_probabilities || null;
+
+  const inputQualityLevel = metricsObj?.certainty?.input_quality_level || null;
+  const hasQuality = !!inputQualityLevel;
+
+  // Engagement intervals (Like / Share / Save) using certainty rules
+  const globalEngagementIntervals =
+    hasQuality && globalEngagement
+      ? {
+          like: computeIntervalForMetric(
+            globalEngagement.like,
+            inputQualityLevel,
+            ENGAGEMENT_UI_RANGES.Like
+          ),
+          share: computeIntervalForMetric(
+            globalEngagement.share,
+            inputQualityLevel,
+            ENGAGEMENT_UI_RANGES.Share
+          ),
+          save: computeIntervalForMetric(
+            globalEngagement.save,
+            inputQualityLevel,
+            ENGAGEMENT_UI_RANGES.Save
+          ),
+        }
+      : metricsObj?.engagement_probabilities_intervals || null;
+
+  // Swipe interval using same certainty logic
+  const swipeInterval =
+    hasQuality && globalAttention?.swipe_probability != null
+      ? computeIntervalForMetric(
+          globalAttention.swipe_probability,
+          inputQualityLevel,
+          SWIPE_RANGE
+        )
+      : globalAttention?.swipe_probability_interval || null;
 
   // 🔑 Find persona metrics using unified key matching
   const selectedPersonaKey = getPersonaKey(selectedPersona);
 
   const personaMetrics =
     selectedPersonaKey &&
-    Array.isArray(metrics) &&
-    metrics.find((m) => getMetricsKey(m) === selectedPersonaKey);
+    Array.isArray(metricsArray) &&
+    metricsArray.find((m) => getMetricsKey(m) === selectedPersonaKey);
 
   const isPersonaView = !!(selectedPersona && personaMetrics);
 
   const pct = (v) =>
     v == null || Number.isNaN(v) ? null : Math.round(v * 100);
 
-  const overallScore = simulation.audienceFitScore ?? 0;
+  // Overall/fit score (prefer simulation.audienceFitScore, else metrics JSON)
+  const overallScore =
+    simulation.audienceFitScore ?? metricsObj?.overall_audience_fit ?? 0;
 
   // Persona match / fit score (0–100)
   const personaMatch = pct(personaMetrics?.alignmentScore);
@@ -427,47 +601,95 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
   const selectedPersonaLabel =
     getTwoWordLabel(rawPersonaLabel) || 'Selected persona';
 
-  // Engagement data source: persona vs general
+  // Engagement data source
   const engagementSource = isPersonaView ? personaMetrics : general;
 
-  // keep raw probabilities (0–1) here
-  const engagementData = [
-    {
-      label: 'Like',
-      value: isPersonaView
-        ? engagementSource.likeProbability
-        : engagementSource.avgLikeProbability,
-      icon: Heart,
-    },
-    {
-      label: 'Comment',
-      value: isPersonaView
-        ? engagementSource.commentProbability
-        : engagementSource.avgCommentProbability,
-      icon: MessageCircle,
-    },
-    {
-      label: 'Share',
-      value: isPersonaView
-        ? engagementSource.shareProbability
-        : engagementSource.avgShareProbability,
-      icon: Share2,
-    },
-    {
-      label: 'Save',
-      value: isPersonaView
-        ? engagementSource.saveProbability
-        : engagementSource.avgSaveProbability,
-      icon: Bookmark,
-    },
-    {
-      label: 'Follow',
-      value: isPersonaView
-        ? engagementSource.followProbability
-        : engagementSource.avgFollowProbability,
-      icon: UserPlus,
-    },
-  ];
+  let engagementData;
+
+  if (isPersonaView) {
+    // Persona-level view: keep full 5 metrics, no intervals (we don't want to pretend precision here)
+    engagementData = [
+      {
+        label: 'Like',
+        value: engagementSource.likeProbability,
+        icon: Heart,
+      },
+      {
+        label: 'Comment',
+        value: engagementSource.commentProbability,
+        icon: MessageCircle,
+      },
+      {
+        label: 'Share',
+        value: engagementSource.shareProbability,
+        icon: Share2,
+      },
+      {
+        label: 'Save',
+        value: engagementSource.saveProbability,
+        icon: Bookmark,
+      },
+      {
+        label: 'Follow',
+        value: engagementSource.followProbability,
+        icon: UserPlus,
+      },
+    ];
+  } else if (globalEngagement) {
+    // Global aggregate view: **only** Like / Share / Save from DB + dynamic intervals
+    engagementData = [
+      {
+        label: 'Like',
+        value:
+          globalEngagement.like ?? engagementSource.avgLikeProbability,
+        interval: globalEngagementIntervals?.like || null,
+        icon: Heart,
+      },
+      {
+        label: 'Share',
+        value:
+          globalEngagement.share ?? engagementSource.avgShareProbability,
+        interval: globalEngagementIntervals?.share || null,
+        icon: Share2,
+      },
+      {
+        label: 'Save',
+        value:
+          globalEngagement.save ?? engagementSource.avgSaveProbability,
+        interval: globalEngagementIntervals?.save || null,
+        icon: Bookmark,
+      },
+    ];
+  } else {
+    // Fallback for older sims with no metrics object
+    engagementData = [
+      {
+        label: 'Like',
+        value: engagementSource.avgLikeProbability,
+        icon: Heart,
+      },
+      {
+        label: 'Comment',
+        value: engagementSource.avgCommentProbability,
+        icon: MessageCircle,
+      },
+      {
+        label: 'Share',
+        value: engagementSource.avgShareProbability,
+        icon: Share2,
+      },
+      {
+        label: 'Save',
+        value: engagementSource.avgSaveProbability,
+        icon: Bookmark,
+      },
+      {
+        label: 'Follow',
+        value: engagementSource.avgFollowProbability,
+        icon: UserPlus,
+      },
+    ];
+  }
 
   // Persona like % for subtitle
   const personaLikeProb = isPersonaView
@@ -483,6 +705,15 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       ? personaMetrics.swipeProbability
       : globalAttention?.swipe_probability ?? general.avgSwipeProbability
   );
+
+  const swipeLowerPct =
+    swipeInterval && swipeInterval.lower != null
+      ? Math.round(swipeInterval.lower * 100)
+      : null;
+  const swipeUpperPct =
+    swipeInterval && swipeInterval.upper != null
+      ? Math.round(swipeInterval.upper * 100)
+      : null;
 
   const predictedWatchTimeSeconds = isPersonaView
     ? personaMetrics.watchTimeSeconds
@@ -516,12 +747,21 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       : globalRetentionCurve;
 
   // ---- Persona-level story playbook (from generate_personas) -----------
+
   const personaStoryPlaybook =
     selectedPersona?.storyPlaybook ||
     selectedPersona?.story_playbook ||
     selectedPersona?.personaJson?.story_playbook ||
     selectedPersona?.persona_json?.story_playbook ||
     null;
+
+  // Parse top-level storytelling/editing insights from backend columns (legacy).
+  const topLevelStorytelling = parseMaybeJson(
+    simulation.storytelling_insights || simulation.storytellingInsights
+  );
+  const topLevelEditing = parseMaybeJson(
+    simulation.editing_insights || simulation.editingInsights
+  );
 
   // Qualitative:
   // In persona view, prefer the per-persona story_playbook (with timestamps).
@@ -546,9 +786,9 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         }
       : personaMetrics?.storytellingInsights ||
         personaMetrics?.qualitativeFeedback
-    : general.storytellingInsights;
+    : general.storytellingInsights || topLevelStorytelling;
 
-  const rawEditing = general.editingInsights;
+  const rawEditing = general.editingInsights || topLevelEditing;
 
   const storytelling = normalizeInsights(rawStorytelling);
   const editing = normalizeInsights(rawEditing);
@@ -578,7 +818,9 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
       <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm w-full">
         <div className="flex flex-col items-center text-center">
           <span className="text-[11px] font-medium text-gray-500 uppercase tracking-[0.12em]">
-            {isPersonaView ? `${selectedPersonaLabel} fit` : 'Overall audience fit'}
+            {isPersonaView
+              ? `${selectedPersonaLabel} fit`
+              : 'Overall audience fit'}
           </span>
 
           <div className="mt-3 text-4xl font-semibold text-gray-900 tabular-nums">
@@ -588,7 +830,7 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
           {/* Spectrum gradient */}
           <div className="mt-5 w-full max-w-sm">
-            <div className="relative h-1.5 rounded-full overflow-hidden bg-gradient-to-r from-white via-gray-400 to-black">
+            <div className="relative h-1.5 rounded-full overflow-hidden bg-gradient-to-r from-slate-100 via-slate-400/80 to-slate-900">
               {/* Tick marker: black on left half, white on right half */}
               <div
                 style={{ left: markerPosition }}
@@ -747,9 +989,9 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
         {showAttentionMethod && (
           <p className="text-[10px] text-gray-400 mb-4">
-            We estimate attention using models trained on thousands of short-form
-            videos, combining your script, visuals and pacing with historical
-            watch-time and scroll data.
+            We estimate attention using models trained on thousands of
+            short-form videos, combining your script, visuals and pacing with
+            historical watch-time and scroll data.
           </p>
         )}
 
@@ -767,14 +1009,18 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
               style={{ width: `${swipeProb ?? 0}%` }}
             />
           </div>
+          {swipeLowerPct != null && swipeUpperPct != null && (
+            <p className="mt-1 text-[10px] text-gray-400">
+              Most viewers are between {swipeLowerPct}% and {swipeUpperPct}%{' '}
+              likely to swipe away on this video.
+            </p>
+          )}
         </div>
 
         {/* Predicted Watch Time */}
         <div className="mb-5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-600">
-              Predicted Watch Time
-            </span>
+            <span className="text-xs text-gray-600">Predicted Watch Time</span>
             <div className="text-right">
               <span className="text-xs font-semibold text-gray-900">
                 {predictedWatchTime}
@@ -798,7 +1044,9 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
         <div className="mb-3 flex items-start justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">
-              {isPersonaView ? 'Engagement Breakdown' : 'Engagement Probabilities'}
+              {isPersonaView
+                ? 'Engagement Breakdown'
+                : 'Engagement Probabilities'}
             </h3>
             <p className="text-[11px] text-gray-400">
               How likely viewers engage.
@@ -814,18 +1062,39 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
 
         {showEngagementMethod && (
           <p className="text-[10px] text-gray-400 mb-4">
-            Engagement is predicted from patterns in similar posts and audiences:
-            we model how viewers with matching interests have historically liked,
-            commented, shared, saved and followed after watching content like this.
+            Engagement is predicted from patterns in similar posts and
+            audiences: we model how viewers with matching interests have
+            historically liked, commented, shared, saved and followed after
+            watching content like this.
           </p>
         )}
 
-        <div className="space-y-4">
+                        <div className="space-y-4">
           {engagementData.map((item) => {
             const Icon = item.icon;
             const prob = item.value; // 0–1 fraction
             const display = formatPercentFromProb(prob);
-            const width = getEngagementBarWidth(item.label, prob);
+
+            // PERSONA VIEW: range-aware bar inside the global bounds
+            const personaWidth = getEngagementBarWidth(item.label, prob);
+
+            // GLOBAL VIEW: interval logic
+            const hasInterval = !isPersonaView && !!item.interval;
+
+            const centerPos = hasInterval
+              ? getEngagementPosition(item.label, prob)
+              : null;
+            const lowerPos =
+              hasInterval && item.interval?.lower != null
+                ? getEngagementPosition(item.label, item.interval.lower)
+                : null;
+            const upperPos =
+              hasInterval && item.interval?.upper != null
+                ? getEngagementPosition(item.label, item.interval.upper)
+                : null;
+
+            // Fallback width for legacy *global* sims with no intervals
+            const legacyWidth = getEngagementBarWidth(item.label, prob);
 
             return (
               <div key={item.label} className="space-y-1.5">
@@ -843,16 +1112,120 @@ export default function AnalyticsPanel({ simulation, selectedPersona }) {
                     {display}
                   </span>
                 </div>
-                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${width}%` }}
-                  />
-                </div>
+
+                {/* PERSONA VIEW: clean strength bar, scaled to metric band */}
+                {isPersonaView ? (
+                  <div className="h-[2px] bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gray-900 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${personaWidth}%` }}
+                    />
+                  </div>
+                ) : hasInterval ? (
+                  <>
+                    {/* GLOBAL VIEW WITH INTERVALS: white pill + ticks */}
+                    <div className="relative h-2 rounded-full border border-gray-900 bg-white overflow-hidden">
+                      {(() => {
+                        // map 0–100 → 6–94 so ticks never sit on the rounded caps
+                        const mapPos = (p) => {
+                          if (p == null || Number.isNaN(p)) return null;
+                          const clamped = Math.max(0, Math.min(p, 100));
+                          return 6 + (clamped / 100) * 88;
+                        };
+
+                        const mappedLower = mapPos(lowerPos);
+                        const mappedUpper = mapPos(upperPos);
+                        const mappedCenter = mapPos(centerPos);
+
+                        if (mappedLower != null && mappedUpper != null) {
+                          const left = Math.min(mappedLower, mappedUpper);
+                          const widthBand = Math.abs(
+                            mappedUpper - mappedLower
+                          );
+
+                          return (
+                            <>
+                              {/* certainty band */}
+                              <div
+                                className="absolute inset-y-[3px] rounded-full bg-gray-200"
+                                style={{
+                                  left: `${left}%`,
+                                  width: `${widthBand}%`,
+                                }}
+                              />
+
+                              {/* lower bound tick – full height */}
+                              <div
+                                className="absolute top-0 bottom-0 w-[2px] bg-gray-500"
+                                style={{
+                                  left: `${mappedLower}%`,
+                                  transform: 'translateX(-50%)',
+                                }}
+                              />
+
+                              {/* upper bound tick – full height */}
+                              <div
+                                className="absolute top-0 bottom-0 w-[2px] bg-gray-500"
+                                style={{
+                                  left: `${mappedUpper}%`,
+                                  transform: 'translateX(-50%)',
+                                }}
+                              />
+                            </>
+                          );
+                        }
+
+                        return null;
+                      })()}
+
+                      {/* expected value tick – full height, slightly thicker + darker */}
+                      {centerPos != null && (
+                        <div
+                          className="absolute top-0 bottom-0 w-[3px] bg-gray-900"
+                          style={{
+                            left: `${
+                              6 +
+                              (Math.max(0, Math.min(centerPos, 100)) / 100) *
+                                88
+                            }%`,
+                            transform: 'translateX(-50%)',
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    {item.interval?.lower != null &&
+                      item.interval?.upper != null && (
+                        <p className="mt-1 text-[10px] text-gray-400">
+                          Most simulated outcomes land between{' '}
+                          <span className="font-medium text-gray-700">
+                            {formatPercentFromProb(item.interval.lower)}
+                          </span>{' '}
+                          and{' '}
+                          <span className="font-medium text-gray-700">
+                            {formatPercentFromProb(item.interval.upper)}
+                          </span>
+                          . The grey ticks mark this low–high range, and the
+                          thicker black tick shows the model&apos;s most likely
+                          value.
+                        </p>
+                      )}
+                  </>
+                ) : (
+                  // GLOBAL LEGACY: simple filled bar
+                  <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gray-800 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${legacyWidth}%` }}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
+
+
       </div>
 
       {/* MODALS FOR EXPANDED INSIGHTS */}

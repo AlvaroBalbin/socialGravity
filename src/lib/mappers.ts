@@ -55,16 +55,33 @@ export interface BackendMetricsEngagementProbabilities {
   follow?: number | null;
 }
 
+export interface BackendInterval {
+  lower?: number | null;
+  upper?: number | null;
+}
+
 export interface BackendMetricsAttention {
   swipe_probability?: number | null;
   predicted_watch_time_seconds?: number | null;
   retention_curve?: number[] | null;
+  swipe_probability_interval?: BackendInterval | null;
+}
+
+export interface BackendMetricsCertainty {
+  input_quality_level?: string | null;
+  [key: string]: any;
 }
 
 export interface BackendMetrics {
   overall_audience_fit?: number | null;
   engagement_probabilities?: BackendMetricsEngagementProbabilities | null;
+  engagement_probabilities_intervals?: {
+    [key: string]: BackendInterval | null;
+  } | null;
   attention_metrics?: BackendMetricsAttention | null;
+  certainty?: BackendMetricsCertainty | null;
+  // allow extra future fields
+  [key: string]: any;
 }
 
 export interface BackendSimulation {
@@ -375,6 +392,12 @@ export interface UISimulation {
 
   /** Metrics for AnalyticsPanel etc (per-persona reactions) */
   metrics: UIPersonaMetrics[];
+
+  /**
+   * NEW: full backend metrics summary JSON (certainty, attention_metrics,
+   * engagement_probabilities, intervals, etc.) for AnalyticsPanel.
+   */
+  metricsSummary: BackendMetrics | null;
 
   /** Aggregated overall feedback for "general" view */
   generalFeedback: UIGeneralFeedback;
@@ -852,6 +875,9 @@ export function mapSimulationToUI(
     personas: uiPersonas,
     personas_data: uiPersonas,
     metrics: uiMetrics,
+
+    // 👇 NEW: full metrics summary JSON (what AnalyticsPanel will use)
+    metricsSummary: backendMetrics ?? null,
 
     generalFeedback,
 

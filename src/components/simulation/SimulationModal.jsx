@@ -124,112 +124,198 @@ export default function SimulationModal({ isOpen, onClose, onComplete }) {
   };
 
   const handleBeginSimulation = async () => {
-    if (!audienceDescription.trim()) {
-      setError("Please describe your target audience");
-      return;
+  if (!audienceDescription.trim()) {
+    setError("Please describe your target audience");
+    return;
+  }
+
+  if (!videoFile) {
+    setError("Please upload a video");
+    return;
+  }
+
+  if (!videoDurationSeconds) {
+    setError("Unable to read video duration. Try re-uploading the file.");
+    return;
+  }
+
+  setError("");
+  setIsRunning(true);
+
+  // simple sleep helper
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  try {
+    // 1) Create simulation record
+    setStatusText("Setting up your simulation workspace…");
+    const startRes = await callEdge("start_simulation", {
+      audience_prompt: audienceDescription,
+      title: simulationTitle,
+    });
+
+    const simulationId =
+      startRes.simulation_id || startRes.simulationId || startRes.id;
+
+    if (!simulationId) {
+      throw new Error("start_simulation did not return simulation_id");
     }
 
-    if (!videoFile) {
-      setError("Please upload a video");
-      return;
-    }
+    // 2) Upload + convert video server-side (MOV → MP4)
+    setStatusText("Uploading your video and preparing frames…");
+    const publicUrl = await uploadAndConvertVideoForSimulation(
+      simulationId,
+      videoFile
+    );
 
-    if (!videoDurationSeconds) {
-      setError("Unable to read video duration. Try re-uploading the file.");
-      return;
-    }
+    // 3) Attach video URL + duration to the simulation
+    setStatusText("Saving video details and metadata…");
+    await callEdge("set_video_url", {
+      simulation_id: simulationId,
+      video_url: publicUrl,
+      video_duration_seconds: Math.round(videoDurationSeconds),
+    });
 
-    setError("");
-    setIsRunning(true);
+    // 4) Transcribe video
+    setStatusText("Transcribing your audio with AI…");
+    await callEdge("transcribe_video", {
+      simulation_id: simulationId,
+    });
+
+    // 5) Generate personas
+    setStatusText("Building your audience personas…");
+    await callEdge("generate_personas", {
+      simulation_id: simulationId,
+    });
+
+    // 6) Start visual analysis (frames + visual summary + OCR)
+    setStatusText("Scanning visuals for hooks and key frames…");
+    await callEdge("start_visual_analysis", {
+      simulation_id: simulationId,
+    });
+
+    // 7) PAUSE: wait for OCR / visual_analysis to be ready
+   // 7) PAUSE: wait for visual_analysis and (ideally) OCR to be ready
+setStatusText("Scanning visuals and extracting on-screen text…");
+
+const maxAttempts = 20; // e.g. up to ~60s if delayMs=3000
+const delayMs = 3000;
+
+let visualReady = false;
+let ocrReady = false;
+
+for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  const { data, error } = await supabase
+    .from("simulations")
+    .select("visual_analysis, on_screen_text_raw")
+    .eq("id", simulationId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error polling simulation for visual_analysis:", error);
+  }
+
+  if (data?.visual_analysis) {
+    visualReady = true;
+
+    let ocrText = "";
 
     try {
-      // 1) Create simulation record
-      setStatusText("Setting up your simulation workspace…");
-      const startRes = await callEdge("start_simulation", {
-        audience_prompt: audienceDescription,
-        title: simulationTitle,
-      });
+      const va =
+        typeof data.visual_analysis === "string"
+          ? JSON.parse(data.visual_analysis)
+          : data.visual_analysis || {};
 
-      const simulationId =
-        startRes.simulation_id || startRes.simulationId || startRes.id;
-
-      if (!simulationId) {
-        throw new Error("start_simulation did not return simulation_id");
+      // 1) Prefer on_screen_text_raw inside visual_analysis
+      if (typeof va?.on_screen_text_raw === "string") {
+        ocrText = va.on_screen_text_raw;
+      }
+      // 2) Fallback: stitch together spans
+      else if (Array.isArray(va?.on_screen_text_spans)) {
+        ocrText = va.on_screen_text_spans
+          .map((s) => (typeof s?.text === "string" ? s.text.trim() : ""))
+          .filter((t) => t.length > 0)
+          .join("\n");
       }
 
-      // 2) Upload + convert video server-side (MOV → MP4)
-      setStatusText("Uploading your video and preparing frames…");
-      const publicUrl = await uploadAndConvertVideoForSimulation(
-        simulationId,
-        videoFile
-      );
-
-      // 3) Attach video URL + duration to the simulation
-      setStatusText("Saving video details and metadata…");
-      await callEdge("set_video_url", {
-        simulation_id: simulationId,
-        video_url: publicUrl,
-        video_duration_seconds: Math.round(videoDurationSeconds),
-      });
-
-      // 4) Transcribe video
-      setStatusText("Transcribing your audio with AI…");
-      await callEdge("transcribe_video", {
-        simulation_id: simulationId,
-      });
-
-      // 5) Generate personas
-      setStatusText("Building your audience personas…");
-      await callEdge("generate_personas", {
-        simulation_id: simulationId,
-      });
-
-      // 6) Analyze simulation (persona reactions / metrics)
-      setStatusText("Running the audience reaction model…");
-      await callEdge("analyze_simulation", {
-        simulation_id: simulationId,
-      });
-
-      // 7) Start visual analysis (frames + visual summary)
-      setStatusText("Scanning visuals for hooks and key frames…");
-      await callEdge("start_visual_analysis", {
-        simulation_id: simulationId,
-      });
-
-      // 8) Finalising
-      setStatusText("Finalising your simulation dashboard…");
-
-      // 9) ✅ Mark simulation as complete in the DB
-      const { error: statusError } = await supabase
-        .from("simulations")
-        .update({
-          status: "complete",
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", simulationId);
-
-      if (statusError) {
-        console.error("Failed to mark simulation complete", statusError);
+      // 3) Absolute fallback: top-level column
+      if (!ocrText && typeof data.on_screen_text_raw === "string") {
+        ocrText = data.on_screen_text_raw;
       }
-
-      // Notify parent that everything is done
-      onComplete({
-        simulationId,
-        audienceDescription,
-        simulationTitle,
-        videoFile,
-        videoDurationSeconds,
-        videoUrl: publicUrl, // final MP4 URL
-      });
-    } catch (err) {
-      console.error("Error running simulation pipeline", err);
-      setError(
-        err?.message || "Something went wrong while running the simulation."
+    } catch (e) {
+      console.error(
+        "Failed to parse visual_analysis JSON while polling:",
+        e
       );
-    } finally {
-      setIsRunning(false);
     }
-  };
+
+    const wordCount = ocrText.trim().split(/\s+/).filter(Boolean).length;
+
+    // OCR is "good enough" – let’s go
+    if (wordCount > 2) {
+      ocrReady = true;
+      break;
+    }
+  }
+
+  // not ready yet → wait and try again
+  await sleep(delayMs);
+}
+
+// If visual never finished, we genuinely can’t analyze
+if (!visualReady) {
+  throw new Error(
+    "Visual analysis took too long. Please try again in a moment."
+  );
+}
+
+// If OCR never showed up, we KEEP GOING – backend will fall back to Whisper + visuals
+if (!ocrReady) {
+  console.warn(
+    "[SimulationModal] Proceeding without OCR text (none detected or still empty after timeout)."
+  );
+}
+
+// 8) Analyze simulation (persona reactions / metrics)
+setStatusText("Running the audience reaction model…");
+await callEdge("analyze_simulation", {
+  simulation_id: simulationId,
+});
+
+
+    // 9) Finalising
+    setStatusText("Finalising your simulation dashboard…");
+
+    const { error: statusError } = await supabase
+      .from("simulations")
+      .update({
+        status: "complete",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", simulationId);
+
+    if (statusError) {
+      console.error("Failed to mark simulation complete", statusError);
+    }
+
+    // Notify parent that everything is done
+    onComplete({
+      simulationId,
+      audienceDescription,
+      simulationTitle,
+      videoFile,
+      videoDurationSeconds,
+      videoUrl: publicUrl,
+    });
+  } catch (err) {
+    console.error("Error running simulation pipeline", err);
+    setError(
+      err?.message || "Something went wrong while running the simulation."
+    );
+  } finally {
+    setIsRunning(false);
+  }
+};
+
 
   if (!isOpen) return null;
 
